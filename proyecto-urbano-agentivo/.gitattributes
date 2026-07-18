@@ -1,3 +1,0 @@
-# Pesos de modelos — Git LFS (instala git-lfs ANTES de clonar)
-*.pt filter=lfs diff=lfs merge=lfs -text
-*.pth filter=lfs diff=lfs merge=lfs -text

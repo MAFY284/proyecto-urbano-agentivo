@@ -1,0 +1,7 @@
+# Dependencias del pipeline de entrenamiento y organización de datasets.
+# (La inferencia y el servidor viven en la raíz del repositorio — ver requirements.txt raíz.)
+
+ultralytics
+opencv-python-headless
+numpy
+requests

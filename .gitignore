@@ -1,13 +1,12 @@
 # =============================================================================
-# Entornos virtuales (se recrean con pip / install.sh, no se versionan)
+# Entornos virtuales (se recrean con install.sh / pip, no se versionan)
 # =============================================================================
 venv/
 venv_sam3/
 env/
 ENV/
 .venv/
-proyecto-urbano-agentivo/venv/
-proyecto-urbano-agentivo/src/tools/env_sam3/
+src/tools/env_sam3/
 
 # =============================================================================
 # Python
@@ -21,14 +20,16 @@ __pycache__/
 # =============================================================================
 # Datasets crudos y procesados (decenas de GB, se distribuyen aparte)
 # =============================================================================
-analisis-fachada-techo-yolo/datasets_fuente/
-analisis-fachada-techo-yolo/datasets/
-analisis-fachada-techo-yolo/dataset_techo_yolo/
-analisis-fachada-techo-yolo/Fotos_Calle/
-analisis-fachada-techo-yolo/entrenamiento/.locks/
-analisis-fachada-techo-yolo/entrenamiento/*.txt
-analisis-fachada-techo-yolo/reporte_organizacion_datasets.json
-app-streamlit-deteccion/pages/models/
+modulos/analisis-fachada-techo-yolo/datasets_fuente/
+modulos/analisis-fachada-techo-yolo/datasets/
+modulos/analisis-fachada-techo-yolo/dataset_techo_yolo/
+modulos/analisis-fachada-techo-yolo/Fotos_Calle/
+modulos/analisis-fachada-techo-yolo/entrenamiento/.locks/
+modulos/analisis-fachada-techo-yolo/entrenamiento/*.txt
+modulos/analisis-fachada-techo-yolo/reporte_organizacion_datasets.json
+modulos/app-streamlit-deteccion/pages/models/
+modulos/app-streamlit-deteccion/models/
+modulos/deteccion-ventanas-streamlit/models/
 
 # =============================================================================
 # Artefactos generados en tiempo de ejecución (reportes, logs, caches)
@@ -36,9 +37,8 @@ app-streamlit-deteccion/pages/models/
 *.log
 nohup.out
 bitacora_proyecto.txt
-reporte_deteccion*.pdf
-Reporte_Inteligencia_Urbana_*.pdf
 reporte_*.pdf
+Reporte_Inteligencia_Urbana_*.pdf
 
 # =============================================================================
 # Configuración local y secretos — NUNCA subir claves de API

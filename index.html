@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plataforma de Análisis Urbano · Sistema Multi-Agente</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231d4ed8'/%3E%3Ctext x='50' y='68' font-size='48' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EUA%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="/styles.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body data-palette="#1d4ed8,#c2410c,#64748b">
+
+<header>
+  <div class="brand">
+    <div class="logo">UA</div>
+    <div>
+      <h1>Plataforma de Análisis Urbano</h1>
+      <div class="sub">Sistema multi-agente · SIG · Visión por computadora · Riesgo — La Condesa, CDMX</div>
+    </div>
+  </div>
+  <div class="chips" id="chips"><span class="chip">Conectando…</span></div>
+</header>
+
+<nav id="nav">
+  <button data-s="mando" class="act">Centro de mando</button>
+  <button data-s="analisis">Análisis de fachadas</button>
+  <button data-s="satelite">Segmentación satelital</button>
+  <button data-s="lab">Laboratorio de modelos</button>
+  <button data-s="sim">Simulador de crisis</button>
+  <button data-s="trafico">Tráfico vial</button>
+</nav>
+
+<div class="hero">
+  <div class="hero-in">
+    <div>
+      <h2>Evaluación de riesgo urbano — Hipódromo-Condesa</h2>
+      <p>Índice combinado por manzana: daños estructurales (40 %), congestión vial (30 %)
+         y altura edificada (30 %), con verificación autónoma entre detectores.</p>
+    </div>
+    <div class="hstats">
+      <div class="hstat"><div class="v" id="hManz">—</div><div class="l">Manzanas evaluadas</div></div>
+      <div class="hstat"><div class="v" id="hEdif">—</div><div class="l">Edificios muestreados</div></div>
+      <div class="hstat"><div class="v" id="hPob">—</div><div class="l">Población expuesta</div></div>
+      <div class="hstat"><div class="v" id="hScore">—</div><div class="l">Score máximo</div></div>
+    </div>
+  </div>
+</div>
+
+<main>
+<!-- ══════════ CENTRO DE MANDO ══════════ -->
+<section id="mando" class="act">
+  <div class="grid2">
+    <div class="panel">
+      <div class="ptitle"><span class="dot"></span>Mapa de riesgo por manzana</div>
+      <div id="mapa"></div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="ptitle"><span class="dot"></span>Manzana seleccionada</div>
+        <label>Clave CVEGEO</label>
+        <select id="selManzana"></select>
+        <div class="kpis" style="margin-top:14px">
+          <div class="kpi pri"><div class="l">Score de riesgo</div><div class="v" id="kScore">—</div></div>
+          <div class="kpi"><div class="l">Congestión</div><div class="v" id="kCong">—</div></div>
+          <div class="kpi"><div class="l">Pisos promedio</div><div class="v" id="kPisos">—</div></div>
+          <div class="kpi"><div class="l">Población expuesta</div><div class="v" id="kPob">—</div></div>
+        </div>
+        <div id="kMeta" style="font-size:12px;color:var(--mut)"></div>
+        <div class="btnrow">
+          <button class="btn" id="btnAnalizar">Ejecutar pipeline</button>
+          <button class="btn sec" id="btnTodas">Reevaluar todas</button>
+          <button class="btn ghost" id="btnPdf">Reporte PDF</button>
+          <button class="btn ghost" id="btnGeo">GeoJSON</button>
+          <button class="btn ghost" id="btnImportar" title="Importa config/edificios_altura_estimadaSam3.csv y reevalúa el riesgo">Importar CSV SAM3</button>
+        </div>
+        <div class="spin" id="spMando"></div>
+      </div>
+      <div class="panel">
+        <div class="ptitle"><span class="dot"></span>Distribución de niveles de riesgo</div>
+        <canvas id="chDona" style="max-height:190px"></canvas>
+      </div>
+      <div class="panel">
+        <div class="ptitle"><span class="dot"></span>Bitácora de agentes</div>
+        <div class="term" id="term"></div>
+      </div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="ptitle"><span class="dot"></span>Ranking de riesgo</div>
+    <div class="tscroll"><table id="tblRank">
+      <thead><tr><th>CVEGEO</th><th>Score</th><th>Nivel</th><th>Daños pond.</th><th>Congestión</th>
+      <th>Pisos</th><th>Muestras</th><th>Confianza</th><th>Población</th><th>Fuente congestión</th></tr></thead>
+      <tbody></tbody></table></div>
+  </div>
+</section>
+
+<!-- ══════════ ANÁLISIS DE FACHADAS ══════════ -->
+<section id="analisis">
+  <div class="panel">
+    <div class="ptitle"><span class="dot"></span>Análisis de fachada — pool YOLO11 con verificación automática</div>
+    <p class="pdesc">Si la confianza promedio del modelo de ventanas cae por debajo del umbral configurado,
+      el Agente de Visión invoca automáticamente un segundo motor (Detectron2 / SAM3) para verificar el conteo.
+      Si el nombre del archivo codifica coordenadas (<span class="mono">lat_lon.jpg</span>), el resultado se
+      geolocaliza y persiste por manzana.</p>
+    <div class="drop" id="dropA">Arrastra una imagen de fachada aquí, o haz clic para seleccionar</div>
+    <input type="file" id="fileA" accept="image/*" hidden>
+    <label>Categorías del pool</label>
+    <div class="checks" id="tiposA"></div>
+    <label>Umbral de confianza — <span class="rangeval" id="confAv">0.25</span></label>
+    <input type="range" id="confA" min="0.05" max="0.95" step="0.05" value="0.25">
+    <div class="btnrow"><button class="btn" id="btnDetectar">Analizar imagen</button></div>
+    <div class="spin" id="spA"></div>
+    <div class="kpis" id="kpisA" style="display:none; margin-top:18px">
+      <div class="kpi"><div class="l">Ventanas</div><div class="v" id="aVent">—</div></div>
+      <div class="kpi"><div class="l">Pisos estimados</div><div class="v" id="aPisos">—</div></div>
+      <div class="kpi"><div class="l">Confianza YOLO11</div><div class="v" id="aConf">—</div></div>
+      <div class="kpi"><div class="l">Verificación</div><div class="v" id="aOra" style="font-size:15px">—</div></div>
+    </div>
+    <div class="cards" id="cardsA"></div>
+  </div>
+</section>
+
+<!-- ══════════ SATÉLITE ══════════ -->
+<section id="satelite">
+  <div class="panel">
+    <div class="ptitle"><span class="dot"></span>Segmentación satelital — YOLOv8-XL con procesamiento por tiles</div>
+    <p class="pdesc">La imagen se divide en mosaicos (tiles) con traslape para procesar áreas grandes sin
+      saturar la memoria de GPU. Ajusta el tamaño de tile según la resolución de la imagen: tiles grandes
+      capturan más contexto; tiles pequeños son más rápidos y detallados.</p>
+    <div class="drop" id="dropS">Arrastra una imagen satelital aquí (JPG/PNG/TIF), o haz clic para seleccionar</div>
+    <input type="file" id="fileS" accept="image/*" hidden>
+    <div class="grid3" style="margin-top:6px">
+      <div><label>Latitud NW</label><input type="number" id="latNW" step="0.0001" value="19.4130"></div>
+      <div><label>Longitud NW</label><input type="number" id="lonNW" step="0.0001" value="-99.1780"></div>
+      <div><label>Latitud SE</label><input type="number" id="latSE" step="0.0001" value="19.4080"></div>
+      <div><label>Longitud SE</label><input type="number" id="lonSE" step="0.0001" value="-99.1720"></div>
+      <div><label>Resolución (m/píxel)</label><input type="number" id="escala" step="0.05" value="0.30"></div>
+      <div><label>Confianza mínima</label><input type="number" id="confS" step="0.05" min="0.05" max="0.95" value="0.50"></div>
+    </div>
+    <div class="grid3">
+      <div>
+        <label>Tamaño de tile — <span class="rangeval" id="tileV">1280</span> px</label>
+        <input type="range" id="tileS" min="320" max="1280" step="32" value="1280">
+      </div>
+      <div>
+        <label>Traslape entre tiles — <span class="rangeval" id="overV">64</span> px</label>
+        <input type="range" id="overS" min="0" max="256" step="16" value="64">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="btnSat">Ejecutar segmentación</button>
+      <button class="btn ghost" id="btnSatGeo" style="display:none">Descargar GeoJSON (QGIS / uMap)</button>
+    </div>
+    <div class="spin" id="spS"></div>
+    <div class="kpis" id="kpisS" style="display:none;margin-top:18px">
+      <div class="kpi"><div class="l">Edificios detectados</div><div class="v" id="sNum">—</div></div>
+      <div class="kpi pri"><div class="l">Área total construida</div><div class="v" id="sArea">—</div></div>
+    </div>
+    <div class="cards" id="cardsS"></div>
+    <div class="tscroll" style="margin-top:16px"><table id="tblSat" style="display:none">
+      <thead><tr><th>ID</th><th>Clase</th><th>Confianza</th><th>Área (m²)</th><th>Latitud</th><th>Longitud</th></tr></thead>
+      <tbody></tbody></table></div>
+  </div>
+</section>
+
+<!-- ══════════ LABORATORIO ══════════ -->
+<section id="lab">
+  <div class="panel">
+    <div class="ptitle"><span class="dot"></span>Laboratorio de evaluación comparativa — detección de ventanas</div>
+    <p class="pdesc">Ejecuta la misma imagen sobre varios motores (YOLOv8, YOLOv8-seg, YOLOv11-seg,
+      Detectron2 y SAM3 zero-shot) y compara los resultados lado a lado.</p>
+    <div class="drop" id="dropL">Arrastra una imagen de fachada aquí, o haz clic para seleccionar</div>
+    <input type="file" id="fileL" accept="image/*" hidden>
+    <label>Motores a comparar</label>
+    <div class="checks" id="motoresL"></div>
+    <div class="grid3">
+      <div><label>Confianza mínima — <span class="rangeval" id="confLv">0.30</span></label>
+        <input type="range" id="confL" min="0.05" max="0.95" step="0.05" value="0.30"></div>
+      <div id="promptWrap" style="display:none"><label>Prompt de texto (SAM3)</label>
+        <input type="text" id="promptL" value="window"></div>
+    </div>
+    <div class="btnrow"><button class="btn" id="btnLab">Comparar motores</button></div>
+    <div class="spin" id="spL"></div>
+    <div class="cards" id="cardsL"></div>
+  </div>
+</section>
+
+<!-- ══════════ SIMULADOR ══════════ -->
+<section id="sim">
+  <div class="panel">
+    <div class="ptitle"><span class="dot"></span>Simulador dinámico de crisis sísmica</div>
+    <p class="pdesc">Proyecta el score de riesgo de una manzana al variar la hora del día y la densidad
+      vial sobre el perfil histórico de congestión de La Condesa.</p>
+    <div class="grid3">
+      <div><label>Manzana evaluada</label><select id="selSim"></select></div>
+      <div><label>Día de la semana</label><select id="diaSim">
+        <option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option>
+        <option>Viernes</option><option>Sábado</option><option>Domingo</option></select></div>
+      <div><label>Hora — <span class="rangeval" id="horaSimV">12</span>:00</label>
+        <input type="range" id="horaSim" min="0" max="23" value="12"></div>
+      <div><label>Factor de densidad vial — <span class="rangeval" id="factSimV">×1.0</span></label>
+        <input type="range" id="factSim" min="0" max="2" step="0.1" value="1.0"></div>
+    </div>
+    <div class="kpis" style="margin-top:18px">
+      <div class="kpi"><div class="l">Score actual (BD)</div><div class="v" id="simAct">—</div></div>
+      <div class="kpi pri"><div class="l">Score simulado</div><div class="v" id="simSim">—</div></div>
+      <div class="kpi"><div class="l">Congestión simulada</div><div class="v" id="simCong">—</div></div>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="ptitle"><span class="dot"></span>Evolución del riesgo en 24 horas</div><canvas id="chCurva"></canvas></div>
+    <div class="panel"><div class="ptitle"><span class="dot"></span>Comparativa entre manzanas</div><canvas id="chComp"></canvas></div>
+  </div>
+</section>
+
+<!-- ══════════ TRÁFICO ══════════ -->
+<section id="trafico">
+  <div class="panel">
+    <div class="ptitle"><span class="dot"></span>Telemetría vial — TomTom con perfil histórico de respaldo</div>
+    <p class="pdesc">Consulta la congestión de las calles de referencia. Con
+      <span class="mono">TOMTOM_API_KEY</span> configurada se usa la API en tiempo real; en caso contrario
+      (o ante cualquier fallo) el sistema usa automáticamente el perfil histórico del día y hora actuales.
+      Cada lectura se persiste asociada a su manzana.</p>
+    <div class="btnrow"><button class="btn" id="btnTraf">Recolectar ahora</button></div>
+    <div class="spin" id="spT"></div>
+    <div class="tscroll" style="margin-top:16px"><table id="tblTraf" style="display:none">
+      <thead><tr><th>Vialidad</th><th>Congestión</th><th>Fuente</th><th>Manzana (CVEGEO)</th></tr></thead>
+      <tbody></tbody></table></div>
+  </div>
+</section>
+</main>
+
+<footer>Plataforma de Análisis Urbano · Proyecto integrador del Verano Científico (Programa Delfín) · YOLO11 / Detectron2 / SAM3 / TomTom</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>
