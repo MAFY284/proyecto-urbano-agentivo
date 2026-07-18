@@ -1,0 +1,80 @@
+PASO 1 - AUDITORÍA DEL ARCHIVO CRUDO
+Filas totales leídas: 10688
+Columnas: ['street', 'lat', 'lon', 'timestamp', 'travel_time_min', 'traffic_delay_min', 'distance_m', 'current_speed_kmh', 'free_speed_kmh', 'source', 'year', 'hour', 'street_qgis']
+
+ Fuentes de datos (columna 'source') 
+source
+google    10608
+tomtom       80
+
+ Valores nulos en columnas numéricas 
+travel_time_min      4
+traffic_delay_min    4
+distance_m           4
+current_speed_kmh    4
+free_speed_kmh       4
+
+ Filas con 'lat' no numérico (formato corrupto): 0 
+
+ Revisión del campo 'street_qgis' 
+Avenidas SIN coincidencia en OSM (street_qgis nulo): []
+Avenidas cuyo nombre corto mapea a MÁS DE UN nombre OSM distinto (ambigüedad): {'Amsterdam': ['Avenida Amsterdam Cacahuamilpa', 'Avenida Amsterdam Popocatépetl']}
+No se detectaron avenidas sin coincidencia OSM.
+PASO 2 - FILTRADO DE FUENTES
+Se conservan solo filas con source == 'google'.
+Filas excluidas por fuente: 80 (<ArrowStringArray>
+['tomtom']
+Length: 1, dtype: str)
+Filas restantes para el análisis histórico: 10608
+Filas con 'lat' inválida que quedan tras el filtro de fuente: 0 (se esperaba 0, ya que ese problema solo ocurría en la fuente excluida)
+Nulos numéricos remanentes en la fuente 'google': 0
+PASO 3 - UNIFICACIÓN DE NOMBRES DE AVENIDA
+Avenidas con nombre canónico asignado automáticamente: 13
+Avenidas marcadas para revisión manual: []
+
+Avenidas con más de un punto de medición distinto: {}
+PASO 4 - PARSEO DE TIMESTAMP
+Timestamps que no se pudieron interpretar: 0
+Rango de fechas cubierto: 2024-09-12 19:20:08.905383 a 2024-10-02 10:51:06.688668
+Días distintos cubiertos: 19
+PASO 5 - CONSTRUCCIÓN DE ESCENARIOS DÍA + HORA
+Ejemplo de escenarios generados:
+           street                 fecha_hora dia_semana  hora_dia  escenario
+  Av. Insurgentes 2024-09-12 19:20:08.905383     Jueves        19 Jueves_19h
+   Av. Nuevo León 2024-09-12 19:20:10.051706     Jueves        19 Jueves_19h
+  Av. Chapultepec 2024-09-12 19:20:11.206146     Jueves        19 Jueves_19h
+Cto. Bicentenario 2024-09-12 19:20:12.404759     Jueves        19 Jueves_19h
+        Amsterdam 2024-09-12 19:20:13.560435     Jueves        19 Jueves_19h
+
+Número de semanas distintas que sostienen cada escenario (mínimo / mediana / máximo): 2 / 2.0 / 3
+PASO 6 - CÁLCULO DEL ÍNDICE DE CONGESTIÓN
+Estadísticas descriptivas del índice de movilidad (current_speed_kmh / free_speed_kmh). Valores altos representan mejor movilidad y menor vulnerabilidad asociada a la movilidad.
+count    10608.000000
+mean         1.085511
+std          0.265677
+min          0.227273
+25%          0.936527
+50%          1.078431
+75%          1.247788
+max          2.021277
+PASO 7 - AGREGACIÓN POR AVENIDA Y ESCENARIO
+Filas en la tabla larga (avenida x escenario): 2184
+Avenidas distintas: 13
+Escenarios distintos observados: 168 (máximo teórico: 7 días x 24 horas = 168)
+
+Celdas avenida-escenario con al menos 3 observaciones: 100.0% del total
+Celdas con menos de 3 observaciones: 0 de 2184
+PASO 8 - CONSTRUCCIÓN DE LA TABLA ANCHA
+Dimensiones de la tabla ancha final: 13 avenidas x 168 escenarios
+Celdas vacías (combinación avenida-escenario sin ninguna observación): 0 de 2184
+PASO 9 - EXPORTACIÓN
+
+Archivos auxiliares para QGIS:
+Ubicación: C:\Users\Evelyn\Downloads\Datos Riesgo Sismos incial\salidas
+  - movilidad_Lunes.csv
+  - movilidad_Martes.csv
+  - movilidad_Miércoles.csv
+  - movilidad_Jueves.csv
+  - movilidad_Viernes.csv
+  - movilidad_Sábado.csv
+  - movilidad_Domingo.csv

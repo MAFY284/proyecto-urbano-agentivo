@@ -1,0 +1,39 @@
+FASE 2 - INTEGRACIÓN ESPACIAL DE LA MOVILIDAD
+Total de hexágonos en la malla: 169
+Total de fragmentos en la intersección Rutas_Movilidad x hexágonos: 49
+PASO 10a - DIAGNÓSTICO ESPACIAL
+Hexágonos tocados por al menos una ruta: 39 de 169 (23.1%)
+Hexágonos SIN ninguna ruta: 130 de 169 (76.9%)
+Hexágonos con más de una ruta (cruces): 8 (4.7%)
+
+Decisión (criterio de agregación, Paso 10c): dado que los cruces son un caso minoritario (menos del 3% de los hexágonos), se usa un promedio aritmético simple entre las rutas presentes en vez de una ponderación por longitud de fragmento. El efecto práctico de esta simplificación sobre el resultado final es marginal, y se documenta aquí como decisión deliberada, no como una omisión.
+
+Decisión (hexágonos sin ninguna ruta): se conservan con movilidad NULL. No se interpola ni se asigna un valor por cercanía (vecino más próximo, buffer de influencia), porque no existe evidencia observada de movilidad en esas celdas y cualquier método de relleno introduce un supuesto no verificado. Estos hexágonos se caracterizarán más adelante mediante una variable complementaria de accesibilidad al transporte público (metro, Metrobús, RTP).
+PASO 10b - VALIDACIÓN DE NOMBRES (join Nombre <-> avenida)
+Todos los nombres de 'Rutas_Movilidad' tienen coincidencia exacta en la tabla de movilidad.
+PASO 10c - AGREGACIÓN POR HEXÁGONO (7 días)
+  Lunes: hex_movilidad_Lunes.csv (39 hexágonos)
+  Martes: hex_movilidad_Martes.csv (39 hexágonos)
+  Miércoles: hex_movilidad_Miércoles.csv (39 hexágonos)
+  Jueves: hex_movilidad_Jueves.csv (39 hexágonos)
+  Viernes: hex_movilidad_Viernes.csv (39 hexágonos)
+  Sábado: hex_movilidad_Sábado.csv (39 hexágonos)
+  Domingo: hex_movilidad_Domingo.csv (39 hexágonos)
+
+Archivos guardados en: C:\Users\Evelyn\Downloads\Datos Riesgo Sismos incial\salidas\hexagonos_movilidad
+PASO 11 - CONVERSIÓN A FORMATO TEMPORAL (7 días)
+  Lunes: movilidad_temporal_Lunes.csv (936 registros, fecha base 2026-01-05)
+  Martes: movilidad_temporal_Martes.csv (936 registros, fecha base 2026-01-06)
+  Miércoles: movilidad_temporal_Miércoles.csv (936 registros, fecha base 2026-01-07)
+  Jueves: movilidad_temporal_Jueves.csv (936 registros, fecha base 2026-01-08)
+  Viernes: movilidad_temporal_Viernes.csv (936 registros, fecha base 2026-01-09)
+  Sábado: movilidad_temporal_Sábado.csv (936 registros, fecha base 2026-01-10)
+  Domingo: movilidad_temporal_Domingo.csv (936 registros, fecha base 2026-01-11)
+PASO 12 - CAPAS ESPACIALES TEMPORALES (7 días)
+  Lunes: HEX_TEMPORAL_Lunes.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)
+  Martes: HEX_TEMPORAL_Martes.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)
+  Miércoles: HEX_TEMPORAL_Miércoles.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)
+  Jueves: HEX_TEMPORAL_Jueves.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)
+  Viernes: HEX_TEMPORAL_Viernes.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)
+  Sábado: HEX_TEMPORAL_Sábado.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)
+  Domingo: HEX_TEMPORAL_Domingo.geojson (4056 registros, 936 con valor de movilidad, 3120 nulos)

@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección de Techos y Fachadas — Dashboard</title>
+    <meta name="description" content="Herramienta de análisis visual para detección de techos y fachadas de edificios con estimación de altura.">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        :root {
+            --bg: #fafaf9;
+            --panel: #ffffff;
+            --ink: #1a1a1a;
+            --ink-soft: #6b6b6b;
+            --line: #d9d9d6;
+            --accent: #c65a2e;
+            --accent-ink: #ffffff;
+            --accent-soft: rgba(198, 90, 46, 0.08);
+            --green: #2d6a4f;
+            --green-soft: rgba(45, 106, 79, 0.08);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: var(--bg);
+            color: var(--ink);
+            font-family: 'IBM Plex Mono', 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .wrap {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 2px solid var(--ink);
+            padding-bottom: 16px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        h1 {
+            font-size: 1.4em;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .tag {
+            font-size: 0.8em;
+            color: var(--ink-soft);
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Tabs ── */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 32px;
+            border: 1px solid var(--ink);
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 14px 20px;
+            font-family: inherit;
+            font-size: 0.8em;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: none;
+            border-right: 1px solid var(--ink);
+            background: var(--panel);
+            color: var(--ink-soft);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .tab-btn:last-child {
+            border-right: none;
+        }
+        .tab-btn:hover {
+            background: var(--bg);
+        }
+        .tab-btn.active {
+            background: var(--ink);
+            color: var(--panel);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ── Dashboard Global ── */
+        .dashboard {
+            margin-bottom: 32px;
+            border: 1px solid var(--line);
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel);
+        }
+        .dashboard-header h2 {
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+        .dashboard-counters {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1px;
+            background: var(--line);
+        }
+        .counter-card {
+            background: var(--panel);
+            padding: 24px 20px;
+            text-align: center;
+        }
+        .counter-value {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .counter-label {
+            font-size: 0.65em;
+            color: var(--ink-soft);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .chart-area {
+            background: var(--panel);
+            padding: 24px 20px;
+            border-top: 1px solid var(--line);
+        }
+        .chart-area canvas {
+            max-height: 220px;
+        }
+        .chart-empty {
+            color: var(--ink-soft);
+            font-size: 0.8em;
+            text-align: center;
+            padding: 20px 0;
+            letter-spacing: 0.03em;
+        }
+
+        /* ── Controls ── */
+        .model-info {
+            font-size: 0.85em;
+            color: var(--ink-soft);
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--line);
+        }
+        .model-info strong {
+            color: var(--ink);
+            font-weight: 700;
+        }
+        .tipo-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-soft);
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 32px;
+        }
+        .btn, .select-model {
+            padding: 11px 20px;
+            font-family: inherit;
+            font-size: 0.85em;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            border: 1px solid var(--ink);
+            border-radius: 0;
+            background: var(--panel);
+            color: var(--ink);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .btn:hover:not(:disabled) {
+            background: var(--ink);
+            color: var(--panel);
+        }
+        .btn-primary {
+            background: var(--ink);
+            color: var(--panel);
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--accent-ink);
+        }
+        .btn-danger {
+            border-color: var(--line);
+            color: var(--ink-soft);
+        }
+        .btn-danger:hover:not(:disabled) {
+            background: #b3261e;
+            border-color: #b3261e;
+            color: #fff;
+        }
+        .btn-export {
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .btn-export:hover:not(:disabled) {
+            background: var(--green);
+            color: #fff;
+        }
+        .btn-sm {
+            padding: 7px 14px;
+            font-size: 0.75em;
+        }
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .select-model {
+            cursor: pointer;
+        }
+        .tipo-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            width: 100%;
+        }
+        .tipo-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: 1px solid var(--ink);
+            font-size: 0.8em;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            background: var(--panel);
+            transition: background 0.15s, color 0.15s;
+        }
+        .tipo-checkbox-item:hover {
+            background: var(--bg);
+        }
+        .tipo-checkbox-item.checked {
+            background: var(--ink);
+            color: var(--panel);
+        }
+        .tipo-checkbox-item input {
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .resultado-card {
+            margin-bottom: 32px;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ── Cargar archivo(s) / carpeta / arrastrar ── */
+        .drop-zone {
+            border: 2px dashed var(--line);
+            border-radius: 8px;
+            padding: 28px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            width: 100%;
+        }
+        .drop-zone:hover {
+            border-color: var(--accent);
+        }
+        .drop-zone.dragging {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+        .drop-zone-icon {
+            font-size: 1.8em;
+            margin-bottom: 6px;
+        }
+        .drop-zone-text {
+            font-weight: 600;
+        }
+        .drop-zone-sub {
+            font-size: 0.8em;
+            color: var(--ink-soft);
+            margin-top: 4px;
+        }
+        .drop-zone button {
+            margin-top: 14px;
+        }
+        .drop-zone-files {
+            margin-top: 14px;
+            text-align: left;
+            font-size: 0.85em;
+            color: var(--ink-soft);
+        }
+
+        /* ── Loading ── */
+        .loading {
+            display: none;
+            padding: 16px 0;
+            font-size: 0.85em;
+            color: var(--ink-soft);
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .loading.active {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .spinner {
+            border: 2px solid var(--line);
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ── Images ── */
+        .images-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--line);
+            margin-bottom: 32px;
+            border: 1px solid var(--line);
+        }
+        .image-box {
+            background: var(--panel);
+            padding: 20px;
+            min-height: 380px;
+            display: flex;
+            flex-direction: column;
+        }
+        .image-box h3, .section-title {
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line);
+        }
+        .image-box .img-slot {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-box img {
+            max-width: 100%;
+            max-height: 320px;
+            display: block;
+        }
+        .image-box img:not([src]), .image-box img[src=""] {
+            display: none;
+        }
+        .empty-note {
+            color: var(--ink-soft);
+            font-size: 0.8em;
+        }
+
+        /* ── Analysis Results Panel ── */
+        .analysis-results {
+            margin-bottom: 32px;
+            border: 1px solid var(--line);
+            display: none;
+        }
+        .analysis-results.visible {
+            display: block;
+        }
+        .analysis-results-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel);
+        }
+        .analysis-results-header h3 {
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+        .analysis-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1px;
+            background: var(--line);
+        }
+        .analysis-col {
+            background: var(--panel);
+            padding: 20px;
+        }
+        .analysis-col h4 {
+            font-size: 0.7em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--line);
+        }
+        .height-big {
+            font-size: 2.8em;
+            font-weight: 700;
+            color: var(--ink);
+            line-height: 1;
+        }
+        .height-big .unit {
+            font-size: 0.4em;
+            color: var(--ink-soft);
+            font-weight: 400;
+        }
+        .height-detail {
+            font-size: 0.8em;
+            color: var(--ink-soft);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+        .geo-info {
+            font-size: 0.85em;
+            line-height: 1.8;
+        }
+        .geo-info .label {
+            color: var(--ink-soft);
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .geo-info .value {
+            font-weight: 700;
+            color: var(--ink);
+        }
+        .geo-info .value.none {
+            color: var(--ink-soft);
+            font-weight: 400;
+            font-style: italic;
+        }
+        .detection-list {
+            list-style: none;
+        }
+        .detection-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+            font-size: 0.85em;
+        }
+        .detection-list li:last-child {
+            border-bottom: none;
+        }
+        .detection-class {
+            color: var(--ink-soft);
+            text-transform: uppercase;
+            font-size: 0.8em;
+            letter-spacing: 0.04em;
+        }
+        .detection-count {
+            font-weight: 700;
+            color: var(--accent);
+            font-size: 1.1em;
+        }
+        .damage-panel {
+            display: none;
+            padding: 20px;
+            border-top: 1px solid var(--line);
+            background: rgba(179, 38, 30, 0.05);
+        }
+        .damage-panel.visible {
+            display: block;
+        }
+        .damage-panel h4 {
+            font-size: 0.7em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #b3261e;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--line);
+        }
+        .damage-panel .detection-count {
+            color: #b3261e;
+        }
+        .damage-panel .damage-empty {
+            font-size: 0.85em;
+            color: var(--green);
+        }
+
+        /* ── Stats Grid ── */
+        .stats h3 {
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--line);
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1px;
+            background: var(--line);
+            border: 1px solid var(--line);
+        }
+        .stat-item {
+            background: var(--panel);
+            padding: 16px 18px;
+        }
+        .stat-label {
+            color: var(--ink-soft);
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 6px;
+        }
+        .stat-value {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        /* ── Batch Processing ── */
+        .batch-panel {
+            border: 1px solid var(--line);
+            margin-bottom: 32px;
+        }
+        .batch-panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--line);
+            background: var(--panel);
+        }
+        .batch-panel-header h3 {
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-soft);
+        }
+        .batch-body {
+            background: var(--panel);
+            padding: 24px 20px;
+        }
+        .batch-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .progress-area {
+            display: none;
+            margin-bottom: 24px;
+        }
+        .progress-area.visible {
+            display: block;
+        }
+        .progress-bar-wrap {
+            width: 100%;
+            height: 8px;
+            background: var(--line);
+            margin-bottom: 10px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 0.8em;
+            color: var(--ink-soft);
+            letter-spacing: 0.03em;
+        }
+        .progress-text .current-file {
+            color: var(--ink);
+            font-weight: 700;
+        }
+        .batch-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--line);
+            font-size: 0.75em;
+            display: none;
+        }
+        .batch-log.visible {
+            display: block;
+        }
+        .batch-log table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .batch-log th {
+            background: var(--bg);
+            position: sticky;
+            top: 0;
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--ink-soft);
+            border-bottom: 1px solid var(--line);
+        }
+        .batch-log td {
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--line);
+            color: var(--ink);
+        }
+        .batch-log tr:hover td {
+            background: var(--accent-soft);
+        }
+        .batch-summary {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid var(--green);
+            background: var(--green-soft);
+        }
+        .batch-summary.visible {
+            display: block;
+        }
+        .batch-summary h4 {
+            font-size: 0.75em;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--green);
+            margin-bottom: 12px;
+        }
+        .batch-summary p {
+            font-size: 0.85em;
+            color: var(--ink);
+            line-height: 1.8;
+        }
+        .batch-summary .num {
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        @media (max-width: 768px) {
+            .images-container,
+            .dashboard-counters,
+            .analysis-body {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-counters {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        @media (max-width: 640px) {
+            .dashboard-counters {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <h1>Detección de Techos y Fachadas</h1>
+            <span class="tag">Herramienta de análisis visual</span>
+        </header>
+
+        <!-- ── Dashboard Global ── -->
+        <div class="dashboard" id="dashboard">
+            <div class="dashboard-header">
+                <h2>Dashboard global</h2>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-export btn-sm" id="exportBtn" type="button">Exportar reporte PDF</button>
+                    <button class="btn btn-danger btn-sm" id="resetStatsBtn">Reiniciar stats</button>
+                </div>
+            </div>
+            <div class="dashboard-counters">
+                <div class="counter-card">
+                    <div class="counter-value" id="globalBuildings">0</div>
+                    <div class="counter-label">Edificios analizados</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-value" id="globalWindows">0</div>
+                    <div class="counter-label">Ventanas detectadas</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-value" id="globalDamage" style="color:#b3261e;">0</div>
+                    <div class="counter-label">Daños detectados</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-value" id="globalDbTotal">0</div>
+                    <div class="counter-label">Registros en BD</div>
+                </div>
+                <div class="counter-card">
+                    <div class="counter-value" id="globalManzanas">0</div>
+                    <div class="counter-label">Manzanas con datos</div>
+                </div>
+            </div>
+            <div class="chart-area">
+                <div class="chart-empty" id="chartEmpty">Analiza edificios para ver la distribución por pisos</div>
+                <canvas id="floorChart" style="display:none;"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Tabs ── -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-analizar">Analizar</button>
+            <button class="tab-btn" data-tab="tab-riesgo">Riesgo por manzana</button>
+        </div>
+
+        <!-- ═══════ TAB: Analizar (archivo individual o carpeta completa, mismas categorías) ═══════ -->
+        <div class="tab-content active" id="tab-analizar">
+            <div class="model-info" id="modelInfo">
+                Elige qué analizar y qué categorías buscar. Si eliges varias, se analizan una por una y el
+                resultado se junta al final.
+            </div>
+
+            <div class="controls">
+                <div class="drop-zone" id="dropZone">
+                    <input type="file" id="fileInput" accept="image/*" multiple style="display:none;">
+                    <input type="file" id="folderInput" webkitdirectory multiple style="display:none;">
+                    <div class="drop-zone-icon">📂</div>
+                    <div class="drop-zone-text">Cargar archivo — haz clic o arrastra imágenes aquí</div>
+                    <div class="drop-zone-sub">Puedes elegir varias con Ctrl/Cmd + clic, o arrastrar una carpeta completa</div>
+                    <button type="button" class="btn" id="folderPickBtn">Cargar carpeta</button>
+                    <div class="drop-zone-files" id="dropZoneFiles" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div class="controls" style="justify-content:flex-end;">
+                <a href="#" id="rutaServidorToggle" style="font-size:0.8em;color:var(--ink-soft);">o procesar una ruta ya en el servidor</a>
+            </div>
+            <div class="controls" id="modoCarpetaControls" style="display:none;">
+                <input type="text" id="batchFolderInput" value="Fotos_Calle" placeholder="Nombre o ruta de la carpeta"
+                       style="flex:1;min-width:220px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;background:var(--bg);color:var(--ink);">
+                <button class="btn btn-primary" id="rutaServidorBtn">Procesar ruta del servidor</button>
+            </div>
+
+            <div class="controls">
+                <div class="tipo-checkboxes" id="tipoCheckboxes">
+                    <!-- Poblado por JS desde /tipos-disponibles (con respaldo estático si falla) -->
+                </div>
+                <label class="tipo-checkbox-item" id="seleccionarTodoWrap">
+                    <input type="checkbox" id="seleccionarTodoCheckbox"> Analizar todo
+                </label>
+            </div>
+
+            <div class="controls">
+                <label style="display:flex;align-items:center;gap:10px;font-size:0.85em;color:var(--ink-soft);">
+                    Confianza mínima (YOLO):
+                    <input type="range" id="confSlider" min="0.05" max="0.95" step="0.05" value="0.25" style="width:160px;accent-color:var(--accent);">
+                    <span id="confValue" style="font-weight:600;color:var(--ink);min-width:38px;">25%</span>
+                </label>
+                <span style="font-size:0.8em;color:var(--ink-soft);">Más alto = menos detecciones pero más seguras. Más bajo = detecta más, incluye dudosas.</span>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" id="analizarBtn" disabled>Analizar</button>
+                <button class="btn btn-danger" id="limpiarBtn" disabled>Limpiar</button>
+                <button class="btn btn-danger" id="batchCancelBtn" disabled>Cancelar</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                Analizando…
+            </div>
+
+            <!-- ── Resultado: archivo individual ── -->
+            <div id="panelArchivo">
+                <div class="image-box" id="originalBox" style="margin-bottom:24px;">
+                    <h3>Imagen original</h3>
+                    <div class="img-slot">
+                        <img id="imgOriginal" alt="">
+                        <span class="empty-note" id="originalNote">No hay imagen cargada</span>
+                    </div>
+                </div>
+
+                <div id="alturaCombinadaBox"></div>
+
+                <!-- Una tarjeta de resultado por cada categoría seleccionada -->
+                <div id="resultadosContainer"></div>
+            </div>
+
+            <!-- ── Resultado: carpeta completa ── -->
+            <div id="panelCarpeta" style="display:none;">
+                <div class="batch-panel">
+                    <div class="batch-body">
+                        <div class="progress-area" id="batchProgress">
+                            <progress id="batchBar" value="0" max="100" style="width: 100%; height: 12px; accent-color: var(--accent); background: var(--line); border: 1px solid var(--line); display: block; margin-bottom: 10px;"></progress>
+                            <div class="progress-text">
+                                <span id="batchPercent">0%</span> —
+                                <span id="batchCount">0 / 0</span> —
+                                <span class="current-file" id="batchCurrentFile"></span>
+                            </div>
+                            <div id="batchStepper" style="margin-top:8px;font-size:0.85em;color:var(--ink-soft);"></div>
+                        </div>
+
+                        <div class="batch-log" id="batchBitacora" style="max-height:130px;">
+                            <div id="batchBitacoraBody" style="font-family:'Courier New',monospace;font-size:0.85em;padding:8px 10px;white-space:pre-wrap;line-height:1.5;"></div>
+                        </div>
+
+                        <div class="batch-summary" id="batchSummary">
+                            <h4>Resumen del procesamiento</h4>
+                            <p id="batchSummaryText"></p>
+                        </div>
+
+                        <div style="margin-top:20px;">
+                            <div class="section-title">Últimos resultados del lote</div>
+                        </div>
+                        <div class="batch-log" id="batchLog">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Archivo</th>
+                                        <th>Categorías</th>
+                                        <th>Detecciones</th>
+                                        <th>Pisos</th>
+                                        <th>Altura</th>
+                                        <th>Daños</th>
+                                        <th>Manzana</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="batchLogBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ TAB: Riesgo por manzana ═══════ -->
+        <div class="tab-content" id="tab-riesgo">
+            <div class="batch-panel">
+                <div class="batch-panel-header">
+                    <h3>Score de riesgo combinado por manzana</h3>
+                </div>
+                <div class="batch-body">
+                    <p style="font-size:0.85em;color:var(--ink-soft);margin-bottom:16px;line-height:1.6;">
+                        Combina daños detectados en fachadas, congestión vial (<code>trafico_tomtom.py</code>)
+                        y altura promedio de los edificios en cada manzana. No es un análisis de riesgo formal,
+                        solo una priorización relativa entre las manzanas ya cubiertas por ambas fuentes de datos.
+                        <span style="display:inline-block;margin-left:8px;">
+                            <span style="color:#2e7d32;">●</span> bajo
+                            <span style="color:#e6a817;margin-left:6px;">●</span> medio
+                            <span style="color:#b3261e;margin-left:6px;">●</span> alto
+                        </span>
+                    </p>
+                    <div id="riesgoMapa" style="width:100%;height:420px;border:1px solid var(--line);margin-bottom:20px;"></div>
+                    <div id="riesgoEmpty" class="empty-note" style="display:none;padding:20px 0;">
+                        Sin datos suficientes todavía — necesitas detecciones de fachada guardadas y/o
+                        tráfico recolectado (<code>trafico_tomtom.py</code>) con manzana identificada.
+                    </div>
+                    <div class="batch-log" style="max-height:420px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Manzana (CVEGEO)</th>
+                                    <th>Score</th>
+                                    <th>Fotos</th>
+                                    <th>Confianza</th>
+                                    <th>Daños</th>
+                                    <th>Congestión</th>
+                                    <th>Pisos prom.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="riesgoTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── DOM refs ──
+        const fileInput = document.getElementById('fileInput');
+        const folderInput = document.getElementById('folderInput');
+        const dropZone = document.getElementById('dropZone');
+        const dropZoneFiles = document.getElementById('dropZoneFiles');
+        const tipoCheckboxes = document.getElementById('tipoCheckboxes');
+        const analizarBtn = document.getElementById('analizarBtn');
+        const limpiarBtn = document.getElementById('limpiarBtn');
+        const imgOriginal = document.getElementById('imgOriginal');
+        const originalNote = document.getElementById('originalNote');
+        const loading = document.getElementById('loading');
+        const resultadosContainer = document.getElementById('resultadosContainer');
+        const resetStatsBtn = document.getElementById('resetStatsBtn');
+        const confSlider = document.getElementById('confSlider');
+        const confValue = document.getElementById('confValue');
+        confSlider.addEventListener('input', () => {
+            confValue.textContent = Math.round(confSlider.value * 100) + '%';
+        });
+
+        // Respaldo estático por si /tipos-disponibles no responde (debe reflejar
+        // MODELOS_CONFIG en servidor_deteccion.py)
+        const CATEGORIAS_FALLBACK = [
+            { id: 'fachada', nombre: 'Fachadas (estructura + daños)' },
+            { id: 'techo', nombre: 'Techos (satelital)' },
+            { id: 'ventanas', nombre: 'Ventanas' },
+            { id: 'fachada_general', nombre: 'Fachada general (arquitectónico)' },
+            { id: 'danos', nombre: 'Daños/deterioro' },
+            { id: 'senales', nombre: 'Señalamiento vial' },
+            { id: 'calles', nombre: 'Calles (vehículos/peatones)' },
+        ];
+        const NOMBRES_CATEGORIA = Object.fromEntries(CATEGORIAS_FALLBACK.map(c => [c.id, c.nombre]));
+
+        let floorChart = null;
+        let batchPollTimer = null;
+        let detectron2Disponible = false;
+
+        // ── Init ──
+        document.addEventListener('DOMContentLoaded', async () => {
+            await construirCheckboxesTipo();
+            updateDashboard();
+        });
+
+        // ── Checkboxes de categoría ──
+        async function construirCheckboxesTipo() {
+            let categorias = CATEGORIAS_FALLBACK;
+            try {
+                const res = await fetch('/tipos-disponibles');
+                const data = await res.json();
+                if (data.tipos && data.tipos.length > 0) {
+                    categorias = data.tipos.map(t => ({ id: t.id, nombre: t.nombre }));
+                    categorias.forEach(c => { NOMBRES_CATEGORIA[c.id] = c.nombre; });
+                }
+                detectron2Disponible = !!data.detectron2_disponible;
+                NOMBRES_CATEGORIA['ventanas_detectron2'] = 'Ventanas (Detectron2)';
+            } catch (e) {
+                console.warn('No se pudo cargar /tipos-disponibles, usando lista de respaldo.');
+            }
+
+            tipoCheckboxes.innerHTML = categorias.map(c => `
+                <label class="tipo-checkbox-item ${c.id === 'fachada' ? 'checked' : ''}" data-tipo="${c.id}">
+                    <input type="checkbox" value="${c.id}" ${c.id === 'fachada' ? 'checked' : ''}>
+                    ${c.nombre}
+                </label>`).join('');
+
+            tipoCheckboxes.querySelectorAll('.tipo-checkbox-item').forEach(label => {
+                const input = label.querySelector('input');
+                input.addEventListener('change', () => {
+                    label.classList.toggle('checked', input.checked);
+                    seleccionarTodoCheckbox.checked = tipoCheckboxes.querySelectorAll('input:checked').length === categorias.length;
+                    if (input.value === 'ventanas') actualizarSelectorMotor();
+                    actualizarControles();
+                });
+            });
+
+            // Selector de motor para "Ventanas" (YOLO propio / Detectron2 de un compañero /
+            // ambos a la vez) — solo aparece si el servidor tiene Detectron2 cargado, y solo
+            // si la casilla "Ventanas" está marcada.
+            if (detectron2Disponible) {
+                const labelVentanas = tipoCheckboxes.querySelector('.tipo-checkbox-item[data-tipo="ventanas"]');
+                if (labelVentanas) {
+                    const selector = document.createElement('select');
+                    selector.id = 'motorVentanas';
+                    selector.style.cssText = 'margin-left:8px;font:inherit;font-size:0.85em;padding:2px 6px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--ink);';
+                    selector.innerHTML = `
+                        <option value="yolo">motor: YOLO</option>
+                        <option value="detectron2">motor: Detectron2</option>
+                        <option value="ambos">motor: ambos</option>`;
+                    selector.addEventListener('click', e => e.stopPropagation());
+                    selector.addEventListener('change', actualizarControles);
+                    labelVentanas.appendChild(selector);
+                }
+            }
+            actualizarSelectorMotor();
+        }
+
+        function actualizarSelectorMotor() {
+            const selector = document.getElementById('motorVentanas');
+            if (!selector) return;
+            const ventanasChecked = tipoCheckboxes.querySelector('input[value="ventanas"]').checked;
+            selector.style.display = ventanasChecked ? '' : 'none';
+        }
+
+        function getTiposSeleccionados() {
+            let tipos = Array.from(tipoCheckboxes.querySelectorAll('input:checked')).map(i => i.value);
+
+            const motorSelector = document.getElementById('motorVentanas');
+            if (motorSelector && tipos.includes('ventanas')) {
+                const motor = motorSelector.value;
+                if (motor === 'detectron2') {
+                    tipos = tipos.filter(t => t !== 'ventanas').concat('ventanas_detectron2');
+                } else if (motor === 'ambos') {
+                    tipos = tipos.concat('ventanas_detectron2');
+                }
+            }
+            return tipos;
+        }
+
+        // ── Tabs ──
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+                if (btn.dataset.tab === 'tab-riesgo') {
+                    cargarMapaRiesgo();
+                }
+            });
+        });
+
+        // ── Mapa de riesgo por manzana ──
+        let riesgoMap = null;
+        let riesgoGeojsonLayer = null;
+
+        function colorPorScore(score) {
+            if (score >= 0.66) return '#b3261e';   // alto
+            if (score >= 0.33) return '#e6a817';   // medio
+            return '#2e7d32';                       // bajo
+        }
+
+        function nivelPorScore(score) {
+            if (score >= 0.66) return 'Alto impacto';
+            if (score >= 0.33) return 'Impacto medio';
+            return 'Bajo impacto';
+        }
+
+        // Barra horizontal nativa HTML/CSS (0-1) — usada en el popup del mapa.
+        function barraHtml(frac, color) {
+            const pct = Math.round(Math.max(0, Math.min(1, frac)) * 100);
+            return `<div style="background:var(--line);border-radius:3px;height:7px;width:100%;overflow:hidden;">
+                <div style="background:${color};height:100%;width:${pct}%;"></div>
+            </div>`;
+        }
+
+        // ── Popup de una manzana: micro-gráficas en vez de JSON/variables sueltas ──
+        function crearPopupManzana(cvegeo, m) {
+            const colorGlobal = colorPorScore(m.score_riesgo);
+            const notaConfianza = m.num_fotos === 0
+                ? 'Sin fotos de fachada todavía — solo tráfico'
+                : `basado en ${m.num_fotos} foto${m.num_fotos === 1 ? '' : 's'} (confianza ${Math.round(m.confianza * 100)}%)`;
+
+            return `
+                <div style="min-width:220px;font-family:inherit;">
+                    <div style="font-weight:700;margin-bottom:6px;">Manzana <span style="font-weight:400;">${cvegeo}</span></div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;">
+                        <span style="font-size:0.8em;color:var(--ink-soft);">Riesgo global</span>
+                        <span style="font-weight:700;color:${colorGlobal};">${Math.round(m.score_riesgo * 100)}% — ${nivelPorScore(m.score_riesgo)}</span>
+                    </div>
+                    ${barraHtml(m.score_riesgo, colorGlobal)}
+
+                    <div style="margin-top:10px;font-size:0.8em;color:var(--ink-soft);">Estructura (altura)</div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85em;">${m.altura_promedio_pisos || '—'} pisos prom.</span>
+                    </div>
+                    ${barraHtml(m.pisos_norm, '#6b6b6b')}
+
+                    <div style="margin-top:10px;font-size:0.8em;color:var(--ink-soft);">Deterioro (daños, ponderado por severidad)</div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85em;">${m.total_danos} ${m.total_danos === 1 ? 'detección' : 'detecciones'} · ${m.danos_ponderados} pts</span>
+                    </div>
+                    ${barraHtml(m.danos_norm, '#b3261e')}
+
+                    <div style="margin-top:10px;font-size:0.8em;color:var(--ink-soft);">
+                        Evacuación / acceso (congestión${m.congestion_hora_pico ? ' en hora pico' : ''})
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85em;">${Math.round(m.congestion * 100)}%${!m.congestion_hora_pico && m.congestion > 0 ? ' (sin lectura en hora pico aún)' : ''}</span>
+                    </div>
+                    ${barraHtml(m.congestion, '#2563eb')}
+
+                    <div style="margin-top:10px;font-size:0.75em;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:6px;">
+                        ${notaConfianza}
+                    </div>
+                </div>`;
+        }
+
+        async function cargarMapaRiesgo() {
+            const riesgoEmpty = document.getElementById('riesgoEmpty');
+            const tableBody = document.getElementById('riesgoTableBody');
+            try {
+                const [geojsonRes, riesgoRes] = await Promise.all([
+                    fetch('/manzanas-geojson'),
+                    fetch('/riesgo-por-manzana')
+                ]);
+                const geojson = await geojsonRes.json();
+                const riesgo = await riesgoRes.json();
+
+                if (geojson.error || !riesgo.manzanas || riesgo.manzanas.length === 0) {
+                    riesgoEmpty.style.display = 'block';
+                    tableBody.innerHTML = '';
+                    return;
+                }
+                riesgoEmpty.style.display = 'none';
+
+                const porCvegeo = Object.fromEntries(riesgo.manzanas.map(m => [m.cvegeo, m]));
+
+                // Tabla, ordenada de mayor a menor riesgo (ya viene ordenada del backend)
+                tableBody.innerHTML = riesgo.manzanas.map(m => `
+                    <tr>
+                        <td>${m.cvegeo}</td>
+                        <td style="color:${colorPorScore(m.score_riesgo)};font-weight:600;">${(m.score_riesgo * 100).toFixed(0)}%</td>
+                        <td>${m.num_fotos}</td>
+                        <td title="Amortigua daños/altura cuando hay pocas fotos">${Math.round(m.confianza * 100)}%</td>
+                        <td>${m.total_danos} <span style="color:var(--ink-soft);font-size:0.85em;">(${m.danos_ponderados} pts)</span></td>
+                        <td>${(m.congestion * 100).toFixed(0)}%${m.congestion_hora_pico ? '' : ' <span style="color:var(--ink-soft);font-size:0.85em;">(fuera de pico)</span>'}</td>
+                        <td>${m.altura_promedio_pisos || '—'}</td>
+                    </tr>`).join('');
+
+                // Mapa
+                if (!riesgoMap) {
+                    riesgoMap = L.map('riesgoMapa');
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19
+                    }).addTo(riesgoMap);
+                }
+                if (riesgoGeojsonLayer) {
+                    riesgoMap.removeLayer(riesgoGeojsonLayer);
+                }
+                riesgoGeojsonLayer = L.geoJSON(geojson, {
+                    style: feature => {
+                        const cvegeo = feature.properties.CVEGEO;
+                        const m = porCvegeo[cvegeo];
+                        return {
+                            color: '#1c1917',
+                            weight: 1,
+                            fillColor: m ? colorPorScore(m.score_riesgo) : '#d6d3d1',
+                            fillOpacity: m ? 0.6 : 0.15
+                        };
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const cvegeo = feature.properties.CVEGEO;
+                        const m = porCvegeo[cvegeo];
+                        if (m) {
+                            layer.bindPopup(crearPopupManzana(cvegeo, m));
+                        } else {
+                            layer.bindPopup(`<strong>Manzana ${cvegeo}</strong><br><span style="color:var(--ink-soft);font-size:0.85em;">Sin datos todavía</span>`);
+                        }
+                    }
+                }).addTo(riesgoMap);
+
+                riesgoMap.fitBounds(riesgoGeojsonLayer.getBounds());
+                // Leaflet necesita recalcular el tamaño si el contenedor estuvo oculto (display:none)
+                setTimeout(() => riesgoMap.invalidateSize(), 100);
+            } catch (e) {
+                console.error('Error al cargar mapa de riesgo:', e);
+                riesgoEmpty.style.display = 'block';
+            }
+        }
+
+        // ── Dashboard ──
+        async function updateDashboard() {
+            try {
+                const [statsRes, dbRes] = await Promise.all([
+                    fetch('/stats'),
+                    fetch('/db-stats')
+                ]);
+                const stats = await statsRes.json();
+                const db = await dbRes.json();
+
+                document.getElementById('globalBuildings').textContent = stats.total_buildings_analyzed;
+                document.getElementById('globalWindows').textContent = stats.total_windows_detected;
+                document.getElementById('globalDamage').textContent = db.total_danos || stats.total_damage_detections;
+                document.getElementById('globalDbTotal').textContent = db.total_registros;
+                document.getElementById('globalManzanas').textContent = db.manzanas_con_datos;
+
+                // Merge floor distributions (prefer DB as it's persistent)
+                const dist = db.floor_distribution && Object.keys(db.floor_distribution).length > 0
+                    ? db.floor_distribution
+                    : stats.floor_distribution;
+                updateFloorChart(dist);
+            } catch (e) {
+                console.error('Error al cargar stats:', e);
+            }
+        }
+
+        function updateFloorChart(distribution) {
+            const canvas = document.getElementById('floorChart');
+            const emptyMsg = document.getElementById('chartEmpty');
+            const keys = Object.keys(distribution).sort((a, b) => Number(a) - Number(b));
+
+            if (keys.length === 0) {
+                canvas.style.display = 'none';
+                emptyMsg.style.display = 'block';
+                if (floorChart) { floorChart.destroy(); floorChart = null; }
+                return;
+            }
+
+            canvas.style.display = 'block';
+            emptyMsg.style.display = 'none';
+
+            const labels = keys.map(k => `${k} piso${k == 1 ? '' : 's'}`);
+            const data = keys.map(k => distribution[k]);
+
+            if (floorChart) floorChart.destroy();
+
+            floorChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Edificios',
+                        data: data,
+                        backgroundColor: 'rgba(198, 90, 46, 0.25)',
+                        borderColor: 'rgba(198, 90, 46, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        title: {
+                            display: true,
+                            text: 'Distribución de edificios por número de pisos',
+                            font: { family: "'IBM Plex Mono', monospace", size: 11, weight: '700' },
+                            color: '#6b6b6b',
+                            padding: { bottom: 16 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: { family: "'IBM Plex Mono', monospace", size: 10 },
+                                color: '#6b6b6b'
+                            },
+                            grid: { color: '#d9d9d6' }
+                        },
+                        x: {
+                            ticks: {
+                                font: { family: "'IBM Plex Mono', monospace", size: 10 },
+                                color: '#6b6b6b'
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        resetStatsBtn.addEventListener('click', async function() {
+            if (confirm('¿Reiniciar todas las estadísticas y vaciar la base de datos?')) {
+                await fetch('/reset-stats', { method: 'POST' });
+                await updateDashboard();
+            }
+        });
+
+        // ── Exportar PDF: deja elegir dónde guardarlo (File System Access API si el
+        // navegador la soporta — Chrome/Edge; en Firefox/Safari cae a la descarga normal
+        // del navegador, que respeta su configuración de "preguntar dónde guardar cada archivo") ──
+        document.getElementById('exportBtn').addEventListener('click', async function() {
+            const btn = this;
+            const textoOriginal = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Generando…';
+            try {
+                const resp = await fetch('/exportar-pdf');
+                if (!resp.ok) throw new Error('El servidor no pudo generar el reporte');
+                const blob = await resp.blob();
+                const nombreSugerido = `reporte_deteccion_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+                if (window.showSaveFilePicker) {
+                    // Diálogo nativo "Guardar como…" — el usuario elige carpeta y nombre
+                    const handle = await window.showSaveFilePicker({
+                        suggestedName: nombreSugerido,
+                        types: [{ description: 'Documento PDF', accept: { 'application/pdf': ['.pdf'] } }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                } else {
+                    // Fallback: descarga normal del navegador (respeta su ajuste de
+                    // "preguntar siempre dónde guardar los archivos")
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = nombreSugerido;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                }
+            } catch (err) {
+                if (err.name !== 'AbortError') { // el usuario canceló el diálogo, no es un error real
+                    alert('No se pudo exportar el PDF: ' + err.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = textoOriginal;
+            }
+        });
+
+        // ═══════ Cargar archivo(s): clic (uno o varios con Ctrl/Cmd), carpeta, o arrastrar ═══════
+        let archivosSeleccionados = [];
+        const EXT_IMAGEN = /\.(jpe?g|png|bmp|webp)$/i;
+
+        function establecerArchivosSeleccionados(archivos) {
+            archivosSeleccionados = archivos;
+
+            if (archivos.length === 0) {
+                dropZoneFiles.style.display = 'none';
+                dropZoneFiles.innerHTML = '';
+                imgOriginal.src = '';
+                originalNote.textContent = 'No hay imagen cargada';
+                originalNote.style.display = 'block';
+            } else if (archivos.length === 1) {
+                dropZoneFiles.style.display = '';
+                dropZoneFiles.innerHTML = `<strong>1 imagen cargada:</strong> ${archivos[0].name}`;
+                const reader = new FileReader();
+                reader.onload = ev => { imgOriginal.src = ev.target.result; originalNote.style.display = 'none'; };
+                reader.readAsDataURL(archivos[0]);
+            } else {
+                dropZoneFiles.style.display = '';
+                dropZoneFiles.innerHTML = `<strong>${archivos.length} imágenes cargadas</strong> — se analizan una por una.`;
+                imgOriginal.src = '';
+                originalNote.textContent = `${archivos.length} imágenes listas`;
+                originalNote.style.display = 'block';
+            }
+
+            resultadosContainer.innerHTML = '';
+            alturaCombinadaBox.innerHTML = '';
+            limpiarBtn.disabled = archivos.length === 0;
+            actualizarControles();
+        }
+
+        fileInput.addEventListener('change', e => establecerArchivosSeleccionados(Array.from(e.target.files)));
+        folderInput.addEventListener('change', e => {
+            establecerArchivosSeleccionados(Array.from(e.target.files).filter(f => EXT_IMAGEN.test(f.name)));
+        });
+
+        document.getElementById('folderPickBtn').addEventListener('click', e => {
+            e.stopPropagation();  // no abrir también el selector de archivo suelto
+            folderInput.click();
+        });
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // Arrastrar y soltar — soporta carpetas completas (recorre con webkitGetAsEntry,
+        // que es lo que usan Drive/Dropbox/etc.; si el navegador no lo soporta, cae a la
+        // lista plana de archivos de todos modos).
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
+        dropZone.addEventListener('drop', async e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragging');
+            const archivos = await extraerArchivosDeDataTransfer(e.dataTransfer);
+            if (archivos.length > 0) establecerArchivosSeleccionados(archivos);
+        });
+
+        function recorrerEntry(entry, archivos) {
+            return new Promise(resolve => {
+                if (entry.isFile) {
+                    entry.file(file => { archivos.push(file); resolve(); }, () => resolve());
+                } else if (entry.isDirectory) {
+                    const reader = entry.createReader();
+                    const leerLote = () => {
+                        reader.readEntries(async subEntries => {
+                            if (subEntries.length === 0) { resolve(); return; }
+                            for (const sub of subEntries) await recorrerEntry(sub, archivos);
+                            leerLote();  // readEntries no siempre trae todo en una sola llamada
+                        }, () => resolve());
+                    };
+                    leerLote();
+                } else {
+                    resolve();
+                }
+            });
+        }
+
+        async function extraerArchivosDeDataTransfer(dataTransfer) {
+            let archivos = [];
+            const items = dataTransfer.items;
+            if (items && items.length && items[0].webkitGetAsEntry) {
+                const entries = Array.from(items).map(i => i.webkitGetAsEntry()).filter(Boolean);
+                for (const entry of entries) await recorrerEntry(entry, archivos);
+            }
+            // Respaldo: si webkitGetAsEntry existe pero no devolvió nada usable (pasa con
+            // algunos navegadores/casos), o si el navegador no lo soporta en absoluto —
+            // dataTransfer.files siempre trae la lista plana de archivos sueltos.
+            if (archivos.length === 0 && dataTransfer.files && dataTransfer.files.length > 0) {
+                archivos = Array.from(dataTransfer.files);
+            }
+            return archivos.filter(f => EXT_IMAGEN.test(f.name));
+        }
+
+        // ── Construye el HTML de una tarjeta de resultado para una categoría ──
+        function crearTarjetaResultado(tipo, data) {
+            const nombre = NOMBRES_CATEGORIA[tipo] || tipo;
+            const clasesOrdenadas = Object.entries(data.conteo_clases || {}).sort((a, b) => a[0].localeCompare(b[0]));
+            let total = 0;
+            let statsHtml = '';
+            let listHtml = '';
+            for (const [clase, cantidad] of clasesOrdenadas) {
+                total += cantidad;
+                statsHtml += `<div class="stat-item"><div class="stat-label">${clase}</div><div class="stat-value">${cantidad}</div></div>`;
+                listHtml += `<li><span class="detection-class">${clase}</span><span class="detection-count">${cantidad}</span></li>`;
+            }
+            if (clasesOrdenadas.length === 0) {
+                listHtml = '<li><span class="detection-class">Sin detecciones</span><span class="detection-count">0</span></li>';
+            }
+
+            // Estimación de altura: solo tiene sentido en modelos que buscan 'window'
+            // (fachada, ventanas, fachada_general). La estimación combinada entre
+            // varias categorías a la vez se muestra aparte, arriba de las tarjetas
+            // (ver renderAlturaCombinada) — esta es la de esta categoría en particular.
+            let heightHtml;
+            if (['fachada', 'ventanas', 'ventanas_detectron2', 'fachada_general'].includes(tipo)) {
+                const pisos = data.numero_pisos || 0;
+                const altura = data.altura_aproximada || 0;
+                heightHtml = `
+                    <div class="analysis-col">
+                        <h4>Estimación de altura</h4>
+                        <div class="height-big">${pisos > 0 ? altura : '—'} <span class="unit">m</span></div>
+                        <div class="height-detail">${pisos > 0 ? `${pisos} ${pisos === 1 ? 'nivel detectado' : 'niveles detectados'} × 3.0 m/nivel` : 'No se detectaron pisos en esta imagen'}</div>
+                    </div>`;
+            } else {
+                heightHtml = '';
+            }
+
+            const geoHtml = `
+                <div class="analysis-col">
+                    <h4>Datos geoespaciales</h4>
+                    <div class="geo-info">
+                        <div><span class="label">Latitud:</span> <span class="value ${data.lat != null ? '' : 'none'}">${data.lat != null ? data.lat.toFixed(6) : '—'}</span></div>
+                        <div><span class="label">Longitud:</span> <span class="value ${data.lon != null ? '' : 'none'}">${data.lon != null ? data.lon.toFixed(6) : '—'}</span></div>
+                        <div><span class="label">Manzana:</span> <span class="value ${data.cvegeo ? '' : 'none'}">${data.cvegeo || 'No identificada'}</span></div>
+                        <div><span class="label">Guardado en BD:</span> <span class="value" style="color:var(--green)">${tipo === 'fachada' ? 'Sí ✓' : 'No (solo fachadas)'}</span></div>
+                    </div>
+                </div>`;
+
+            // Panel de daños: solo aplica a las categorías que buscan clases de daño
+            let damageHtml = '';
+            if (tipo === 'fachada' || tipo === 'danos') {
+                const danos = data.danos_detectados || {};
+                const danosOrdenados = Object.entries(danos).sort((a, b) => b[1] - a[1]);
+                const danosListHtml = danosOrdenados.length === 0
+                    ? '<li><span class="damage-empty">✓ Sin daños visibles detectados</span></li>'
+                    : danosOrdenados.map(([clase, cantidad]) => `<li><span class="detection-class">${clase}</span><span class="detection-count">${cantidad}</span></li>`).join('');
+                damageHtml = `
+                    <div class="damage-panel visible">
+                        <h4>Daños y deterioro detectados</h4>
+                        <ul class="detection-list">${danosListHtml}</ul>
+                    </div>`;
+            }
+
+            return `
+                <div class="resultado-card">
+                    <div class="images-container" style="margin-bottom:0;">
+                        <div class="image-box">
+                            <h3>Detección — ${nombre}</h3>
+                            <div class="img-slot">
+                                <img src="data:image/jpeg;base64,${data.imagen_base64}" alt="Resultado ${nombre}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="analysis-results visible">
+                        <div class="analysis-body">
+                            ${heightHtml}
+                            ${geoHtml}
+                            <div class="analysis-col">
+                                <h4>Detecciones por clase</h4>
+                                <ul class="detection-list">${listHtml}</ul>
+                            </div>
+                        </div>
+                        ${damageHtml}
+                    </div>
+                    <div class="stats">
+                        <h3>Estadísticas — ${nombre}</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item"><div class="stat-label">Total de objetos</div><div class="stat-value">${total}</div></div>
+                            ${statsHtml}
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        // ── Estimación de altura combinada (una sola, entre todas las categorías elegidas) ──
+        const alturaCombinadaBox = document.getElementById('alturaCombinadaBox');
+        function renderAlturaCombinada(altura) {
+            if (!altura) {
+                alturaCombinadaBox.innerHTML = '';
+                return;
+            }
+            const nivelesTxt = altura.numero_pisos === 1 ? 'nivel detectado' : 'niveles detectados';
+            alturaCombinadaBox.innerHTML = `
+                <div class="resultado-card" style="padding:20px;margin-bottom:24px;">
+                    <h3 style="margin-bottom:10px;">Estimación de altura combinada${badgeMotorHtml(altura.origen)}</h3>
+                    <div class="analysis-col">
+                        <div class="height-big">${altura.altura_aproximada} <span class="unit">m</span></div>
+                        <div class="height-detail">${altura.numero_pisos} ${nivelesTxt} × 3.0 m/nivel — según el modelo "${NOMBRES_CATEGORIA[altura.origen] || altura.origen}"</div>
+                    </div>
+                </div>`;
+        }
+
+        // ── Analyze: un solo archivo (detalle completo, tarjeta por categoría) ──
+        async function analizarArchivo(file) {
+            const tipos = getTiposSeleccionados();
+            if (!file || tipos.length === 0) return;
+
+            const formData = new FormData();
+            formData.append('imagen', file);
+            formData.append('conf', confSlider.value);
+            tipos.forEach(t => formData.append('tipo', t));
+
+            panelArchivo.style.display = '';
+            panelCarpeta.style.display = 'none';
+            loading.classList.add('active');
+            procesando = true;
+            actualizarControles();
+            resultadosContainer.innerHTML = '';
+            alturaCombinadaBox.innerHTML = '';
+
+            try {
+                const response = await fetch('/detectar', { method: 'POST', body: formData });
+                const data = await response.json();
+
+                if (data.success) {
+                    renderAlturaCombinada(data.altura_estimada);
+                    resultadosContainer.innerHTML = Object.entries(data.resultados)
+                        .map(([tipo, resultado]) => crearTarjetaResultado(tipo, resultado))
+                        .join('');
+                    await updateDashboard();
+                } else {
+                    alert('Error: ' + (data.error || 'No se pudo procesar la imagen'));
+                }
+            } catch (error) {
+                alert('Error de conexión: ' + error.message);
+            } finally {
+                loading.classList.remove('active');
+                procesando = false;
+                actualizarControles();
+            }
+        }
+
+        // ── Clear ──
+        limpiarBtn.addEventListener('click', function() {
+            fileInput.value = '';
+            folderInput.value = '';
+            establecerArchivosSeleccionados([]);
+            panelArchivo.style.display = '';
+            panelCarpeta.style.display = 'none';
+            batchProgress.classList.remove('visible');
+            batchSummary.classList.remove('visible');
+            batchLog.classList.remove('visible');
+            batchLogBody.innerHTML = '';
+            batchBitacora.classList.remove('visible');
+            batchBitacoraBody.textContent = '';
+            batchStepper.textContent = '';
+            limpiarBtn.disabled = true;
+        });
+
+        const panelArchivo = document.getElementById('panelArchivo');
+        const panelCarpeta = document.getElementById('panelCarpeta');
+        const seleccionarTodoCheckbox = document.getElementById('seleccionarTodoCheckbox');
+        const modoCarpetaControls = document.getElementById('modoCarpetaControls');
+        const batchFolderInput = document.getElementById('batchFolderInput');
+        const rutaServidorBtn = document.getElementById('rutaServidorBtn');
+        const batchCancelBtn = document.getElementById('batchCancelBtn');
+        const batchProgress = document.getElementById('batchProgress');
+        const batchBar = document.getElementById('batchBar');
+        const batchPercent = document.getElementById('batchPercent');
+        const batchCount = document.getElementById('batchCount');
+        const batchCurrentFile = document.getElementById('batchCurrentFile');
+        const batchStepper = document.getElementById('batchStepper');
+        const batchBitacora = document.getElementById('batchBitacora');
+        const batchBitacoraBody = document.getElementById('batchBitacoraBody');
+        const batchLog = document.getElementById('batchLog');
+        const batchLogBody = document.getElementById('batchLogBody');
+        const batchSummary = document.getElementById('batchSummary');
+        const batchSummaryText = document.getElementById('batchSummaryText');
+
+        function agregarLineaBitacora(texto) {
+            batchBitacora.classList.add('visible');
+            batchBitacoraBody.textContent += (batchBitacoraBody.textContent ? '\n' : '') + texto;
+            batchBitacoraBody.scrollTop = batchBitacoraBody.scrollHeight;
+        }
+
+        // 'procesando' bloquea ambos botones de arranque a la vez (no tiene sentido
+        // lanzar el cargador de archivos y la ruta del servidor al mismo tiempo).
+        // 'modoActivoCancelacion' le dice a "Cancelar" a cuál de los dos avisarle.
+        let procesando = false;
+        let modoActivoCancelacion = null;  // 'cliente' | 'servidor'
+        let cancelarClienteLoop = false;
+
+        function actualizarControles() {
+            const hayTipos = getTiposSeleccionados().length > 0;
+            analizarBtn.disabled = procesando || archivosSeleccionados.length === 0 || !hayTipos;
+            rutaServidorBtn.disabled = procesando || batchFolderInput.value.trim().length === 0 || !hayTipos;
+            batchCancelBtn.disabled = !procesando;
+        }
+
+        seleccionarTodoCheckbox.addEventListener('change', () => {
+            tipoCheckboxes.querySelectorAll('input[type=checkbox]').forEach(input => {
+                input.checked = seleccionarTodoCheckbox.checked;
+                input.closest('.tipo-checkbox-item').classList.toggle('checked', input.checked);
+            });
+            actualizarControles();
+        });
+
+        document.getElementById('rutaServidorToggle').addEventListener('click', e => {
+            e.preventDefault();
+            modoCarpetaControls.style.display = modoCarpetaControls.style.display === 'none' ? '' : 'none';
+        });
+        batchFolderInput.addEventListener('input', actualizarControles);
+
+        analizarBtn.addEventListener('click', () => {
+            if (archivosSeleccionados.length === 1) {
+                analizarArchivo(archivosSeleccionados[0]);
+            } else if (archivosSeleccionados.length > 1) {
+                analizarMultiplesArchivosCliente(archivosSeleccionados);
+            }
+        });
+
+        batchCancelBtn.addEventListener('click', async () => {
+            if (modoActivoCancelacion === 'servidor') {
+                await fetch('/batch/cancel', { method: 'POST' });
+            } else {
+                cancelarClienteLoop = true;
+            }
+            batchCancelBtn.disabled = true;
+        });
+
+        // Categorías que pueden aportar algo a "pisos/altura" o "daños" — el resto
+        // (Techos, Señales, Calles) no tiene esas clases, así que mostrar esas
+        // columnas/líneas en 0 confundía (parecía que sí las había buscado).
+        const TIPOS_CON_ALTURA = ['fachada', 'ventanas', 'ventanas_detectron2', 'fachada_general'];
+        const TIPOS_CON_DANOS = ['fachada', 'danos'];
+
+        // Total de objetos detectados (todas las clases de todas las categorías
+        // elegidas para ese archivo) — cubre los casos donde Pisos/Altura/Daños no
+        // aplican (Techos, Señales, Calles) y aun así queremos ver un número, p. ej.
+        // cuántos "edificio" (techos) se detectaron.
+        function contarDetecciones(r) {
+            const porClase = {};
+            let total = 0;
+            for (const v of Object.values(r.resultados || {})) {
+                for (const [clase, cantidad] of Object.entries(v.conteo_clases || {})) {
+                    total += cantidad;
+                    porClase[clase] = (porClase[clase] || 0) + cantidad;
+                }
+            }
+            return { total, porClase };
+        }
+
+        // Badge de motor: qué modelo generó el número de "Altura/Pisos" de esa fila —
+        // relevante ahora que Ventanas tiene dos motores (YOLO propio y Detectron2 de
+        // un compañero) y combinar_altura_estimada() elige uno solo (nunca mezcla
+        // ambos, para no inflar el conteo de filas de ventana — ver servidor_deteccion.py).
+        const BADGE_MOTOR = {
+            'ventanas': { texto: 'YOLO', color: '#2563eb' },
+            'ventanas_detectron2': { texto: 'D2', color: '#7c3aed' },
+            'fachada': { texto: 'FACH', color: '#2d6a4f' },
+            'fachada_general': { texto: 'FGEN', color: '#b45309' },
+        };
+
+        function badgeMotorHtml(origen) {
+            const b = BADGE_MOTOR[origen];
+            if (!b) return '';
+            return ` <span style="display:inline-block;padding:1px 6px;border-radius:3px;font-size:0.7em;font-weight:700;letter-spacing:0.03em;background:${b.color};color:#fff;" title="Altura estimada con el modelo: ${NOMBRES_CATEGORIA[origen] || origen}">${b.texto}</span>`;
+        }
+
+        // ── Una fila de la tabla de resultados en lote (usada por el cargador de
+        // archivos del cliente y por el sondeo de /batch/results del servidor) ──
+        function filaBatchHtml(r) {
+            if (r.error) {
+                return `<tr><td>${r.archivo}</td><td colspan="6" style="color:#b3261e">Error: ${r.error}</td></tr>`;
+            }
+            const categorias = r.tipos.map(t => NOMBRES_CATEGORIA[t] || t).join(', ');
+            const aplicaAltura = r.tipos.some(t => TIPOS_CON_ALTURA.includes(t));
+            const aplicaDanos = r.tipos.some(t => TIPOS_CON_DANOS.includes(t));
+            const pisos = aplicaAltura ? (r.altura_estimada ? r.altura_estimada.numero_pisos : 0) : '—';
+            const badge = aplicaAltura && r.altura_estimada ? badgeMotorHtml(r.altura_estimada.origen) : '';
+            const altura = aplicaAltura ? `${r.altura_estimada ? r.altura_estimada.altura_aproximada : 0} m${badge}` : '—';
+            const danos = aplicaDanos ? (r.danos || 0) : '—';
+            const { total, porClase } = contarDetecciones(r);
+            const detalleClases = Object.entries(porClase).map(([c, n]) => `${c}: ${n}`).join(', ');
+            return `<tr>
+                <td>${r.archivo}</td>
+                <td>${categorias}</td>
+                <td title="${detalleClases}">${total}</td>
+                <td>${pisos}</td>
+                <td>${altura}</td>
+                <td${aplicaDanos && r.danos > 0 ? ' style="color:#b3261e;font-weight:700;"' : ''}>${danos}</td>
+                <td>${r.cvegeo || '—'}</td>
+            </tr>`;
+        }
+
+        function calcularResumenBatch(resultados) {
+            const totalProcessed = resultados.length;
+            const withFloors = resultados.filter(r => r.altura_estimada && r.altura_estimada.numero_pisos > 0).length;
+            const totalWindows = resultados.reduce((s, r) => {
+                const vals = Object.values(r.resultados || {});
+                return s + vals.reduce((s2, v) => s2 + (v.ventanas || 0), 0);
+            }, 0);
+            const totalDamage = resultados.reduce((s, r) => s + (r.danos || 0), 0);
+            const manzanas = new Set(resultados.filter(r => r.cvegeo).map(r => r.cvegeo)).size;
+
+            // Total de objetos por clase, sumado entre todas las fotos y categorías —
+            // así se ve algo aunque la categoría no tenga pisos/ventanas/daños
+            // (ej. "edificio: 42" con solo Techos elegido).
+            const porClase = {};
+            for (const r of resultados) {
+                for (const v of Object.values(r.resultados || {})) {
+                    for (const [clase, cantidad] of Object.entries(v.conteo_clases || {})) {
+                        porClase[clase] = (porClase[clase] || 0) + cantidad;
+                    }
+                }
+            }
+            return { totalProcessed, withFloors, totalWindows, totalDamage, manzanas, porClase };
+        }
+
+        function mostrarResumenBatch(resultados) {
+            const { totalProcessed, withFloors, totalWindows, totalDamage, manzanas, porClase } = calcularResumenBatch(resultados);
+            const filaConTipos = resultados.find(r => r.tipos);
+            const tipos = filaConTipos ? filaConTipos.tipos : [];
+            const aplicaAltura = tipos.some(t => TIPOS_CON_ALTURA.includes(t));
+            const aplicaDanos = tipos.some(t => TIPOS_CON_DANOS.includes(t));
+
+            let lineas = `Fotos procesadas: <span class="num">${totalProcessed}</span><br>`;
+            // El desglose por clase (ej. "edificio detectados: 42") solo se agrega cuando
+            // NINGUNA categoría elegida tiene su propio resumen de altura/ventanas —
+            // si no, sería redundante con "Total ventanas" de abajo.
+            if (!aplicaAltura) {
+                const clasesOrdenadas = Object.entries(porClase).sort((a, b) => b[1] - a[1]);
+                if (clasesOrdenadas.length > 0) {
+                    lineas += clasesOrdenadas.map(([clase, n]) => `${clase} detectados: <span class="num">${n}</span>`).join('<br>') + '<br>';
+                }
+            }
+            if (aplicaAltura) {
+                lineas += `Con pisos detectados: <span class="num">${withFloors}</span><br>`;
+                lineas += `Total ventanas: <span class="num">${totalWindows}</span><br>`;
+            }
+            if (aplicaDanos) {
+                lineas += `Daños detectados: <span class="num" style="color:#b3261e">${totalDamage}</span><br>`;
+            }
+            lineas += `Manzanas cubiertas: <span class="num">${manzanas}</span><br><br>`;
+            lineas += tipos.includes('fachada')
+                ? 'Los resultados de la categoría "Fachadas" se guardaron en la base de datos.'
+                : 'Ninguna de las categorías elegidas se guarda en la base de datos (solo "Fachadas" lo hace).';
+            lineas += ' Usa el botón <strong>"Exportar reporte PDF"</strong> del dashboard para descargar el informe completo.';
+
+            batchSummary.classList.add('visible');
+            batchSummaryText.innerHTML = lineas;
+        }
+
+        // ── Cargador de archivos del cliente: varias imágenes elegidas/arrastradas,
+        // se suben y analizan una por una vía /detectar (no requiere que las fotos
+        // ya estén en el servidor, a diferencia de la ruta del servidor de abajo) ──
+        async function analizarMultiplesArchivosCliente(files) {
+            const tipos = getTiposSeleccionados();
+            if (files.length === 0 || tipos.length === 0) return;
+            if (!confirm(`¿Analizar ${files.length} imágenes con ${tipos.length} categoría(s)?\nSe procesan una por una, puede tardar.`)) return;
+
+            panelArchivo.style.display = 'none';
+            panelCarpeta.style.display = '';
+            procesando = true;
+            modoActivoCancelacion = 'cliente';
+            cancelarClienteLoop = false;
+            actualizarControles();
+
+            batchProgress.classList.add('visible');
+            batchSummary.classList.remove('visible');
+            batchLog.classList.add('visible');
+            batchLogBody.innerHTML = '';
+            batchBitacoraBody.textContent = '';
+            batchBitacora.classList.remove('visible');
+
+            const conf = confSlider.value;
+            const nombresTipos = tipos.map(t => NOMBRES_CATEGORIA[t] || t).join(', ');
+            const resultadosAcumulados = [];
+
+            for (let i = 0; i < files.length; i++) {
+                if (cancelarClienteLoop) break;
+                const file = files[i];
+                batchCurrentFile.textContent = file.name;
+                batchCount.textContent = `${i} / ${files.length}`;
+                batchBar.value = Math.round((i / files.length) * 100);
+                batchPercent.textContent = batchBar.value + '%';
+                batchStepper.textContent = `⚙️ Procesando imagen ${i + 1}/${files.length}: analizando con ${nombresTipos}...`;
+                agregarLineaBitacora(`[imagen ${i + 1}/${files.length}] ${file.name} — enviando categorías: ${nombresTipos}`);
+
+                const formData = new FormData();
+                formData.append('imagen', file);
+                formData.append('conf', conf);
+                tipos.forEach(t => formData.append('tipo', t));
+
+                let fila;
+                try {
+                    const res = await fetch('/detectar', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.success) {
+                        const danos = Object.values(data.resultados).reduce((s, r) => s + (r.total_danos || 0), 0);
+                        const cvegeo = Object.values(data.resultados).map(r => r.cvegeo).find(c => c) || null;
+                        fila = { archivo: file.name, tipos, resultados: data.resultados, altura_estimada: data.altura_estimada, danos, cvegeo };
+                    } else {
+                        fila = { archivo: file.name, error: data.error || 'error desconocido' };
+                    }
+                } catch (e) {
+                    fila = { archivo: file.name, error: e.message };
+                }
+
+                resultadosAcumulados.push(fila);
+                batchLogBody.insertAdjacentHTML('beforeend', filaBatchHtml(fila));
+                batchLog.scrollTop = batchLog.scrollHeight;
+
+                batchCount.textContent = `${i + 1} / ${files.length}`;
+                batchBar.value = Math.round(((i + 1) / files.length) * 100);
+                batchPercent.textContent = batchBar.value + '%';
+            }
+
+            batchCurrentFile.textContent = cancelarClienteLoop ? 'Cancelado' : 'Completado';
+            batchStepper.textContent = '';
+            mostrarResumenBatch(resultadosAcumulados);
+            await updateDashboard();
+
+            procesando = false;
+            modoActivoCancelacion = null;
+            actualizarControles();
+        }
+
+        // ── Ruta del servidor (opción aparte): analiza una carpeta que ya está en
+        // el disco del servidor, sin subir nada desde el navegador — útil para
+        // carpetas enormes que ya están recolectadas (ej. Fotos_Calle) ──
+        rutaServidorBtn.addEventListener('click', iniciarProcesamientoCarpeta);
+
+        async function iniciarProcesamientoCarpeta() {
+            const folder = batchFolderInput.value.trim();
+            const tipos = getTiposSeleccionados();
+            if (!folder || tipos.length === 0) return;
+            if (!confirm(`¿Iniciar el procesamiento de todas las fotos en "${folder}" con ${tipos.length} categoría(s)?\nCada foto se analiza una categoría a la vez. Puede tardar varios minutos.`)) return;
+
+            panelArchivo.style.display = 'none';
+            panelCarpeta.style.display = '';
+            procesando = true;
+            modoActivoCancelacion = 'servidor';
+            actualizarControles();
+            batchProgress.classList.add('visible');
+            batchSummary.classList.remove('visible');
+            batchLog.classList.add('visible');
+            batchLogBody.innerHTML = '';
+
+            try {
+                const res = await fetch('/batch/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder: folder, tipos: tipos, conf: parseFloat(confSlider.value) })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    pollBatchProgress();
+                } else {
+                    alert('Error: ' + data.error);
+                    procesando = false;
+                    modoActivoCancelacion = null;
+                    actualizarControles();
+                }
+            } catch (e) {
+                alert('Error de conexión: ' + e.message);
+                procesando = false;
+                modoActivoCancelacion = null;
+                actualizarControles();
+            }
+        }
+
+        let lastBatchProcessed = 0;
+
+        let lastBatchLogLength = 0;
+
+        function pollBatchProgress() {
+            if (batchPollTimer) clearInterval(batchPollTimer);
+            lastBatchProcessed = 0;
+            lastBatchLogLength = 0;
+            batchBitacoraBody.textContent = '';
+            batchBitacora.classList.remove('visible');
+
+            batchPollTimer = setInterval(async () => {
+                try {
+                    const res = await fetch('/batch/progress');
+                    const p = await res.json();
+
+                    batchBar.value = p.percent;
+                    batchPercent.textContent = p.percent + '%';
+                    batchCount.textContent = `${p.processed} / ${p.total}`;
+                    batchCurrentFile.textContent = p.current_file;
+                    batchStepper.textContent = p.current_tipo_nombre
+                        ? `⚙️ Procesando imagen ${Math.min(p.processed + 1, p.total)}/${p.total}: corriendo modelo "${p.current_tipo_nombre}"...`
+                        : '';
+
+                    // La bitácora del servidor (batch_state.log) trae hasta 30 líneas
+                    // recientes — solo se agregan las que todavía no se mostraron.
+                    if (p.log && p.log.length > lastBatchLogLength) {
+                        for (const linea of p.log.slice(lastBatchLogLength)) {
+                            agregarLineaBitacora(linea);
+                        }
+                        lastBatchLogLength = p.log.length;
+                    } else if (p.log && p.log.length < lastBatchLogLength) {
+                        // el backend recortó/reinició el log (otra corrida) — resincroniza
+                        batchBitacoraBody.textContent = p.log.join('\n');
+                        lastBatchLogLength = p.log.length;
+                    }
+
+                    if (p.processed > lastBatchProcessed) {
+                        const rRes = await fetch('/batch/results');
+                        const rData = await rRes.json();
+                        batchLogBody.innerHTML = rData.results.map(filaBatchHtml).join('');
+                        batchLog.scrollTop = batchLog.scrollHeight;
+                        lastBatchProcessed = p.processed;
+                    }
+
+                    if (!p.running) {
+                        clearInterval(batchPollTimer);
+                        batchPollTimer = null;
+                        batchCurrentFile.textContent = 'Completado';
+                        batchStepper.textContent = '';
+
+                        const rRes = await fetch('/batch/results');
+                        const rData = await rRes.json();
+                        mostrarResumenBatch(rData.results);
+                        await updateDashboard();
+
+                        procesando = false;
+                        modoActivoCancelacion = null;
+                        actualizarControles();
+                    }
+                } catch (e) {
+                    console.error('Error polling batch:', e);
+                }
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{
+  "inicio": "2026-07-09 17:43:06",
+  "fin": "2026-07-13 07:07:32",
+  "actual": null,
+  "plan": [
+    {
+      "id": "techo",
+      "nombre": "Techos (satelital)",
+      "script": "entrenar_techo.py",
+      "epocas": 200
+    },
+    {
+      "id": "fachada",
+      "nombre": "Fachadas (estructura + daños)",
+      "script": "entrenar_fachada.py",
+      "epocas": 500
+    },
+    {
+      "id": "ventanas",
+      "nombre": "Ventanas",
+      "script": "entrenar_ventanas.py",
+      "epocas": 500
+    },
+    {
+      "id": "fachada_general",
+      "nombre": "Fachada general (arquitectónico)",
+      "script": "entrenar_fachada_general.py",
+      "epocas": 500
+    },
+    {
+      "id": "danos",
+      "nombre": "Daños/deterioro",
+      "script": "entrenar_danos.py",
+      "epocas": 500
+    },
+    {
+      "id": "senales",
+      "nombre": "Señalamiento vial",
+      "script": "entrenar_senales.py",
+      "epocas": 500
+    },
+    {
+      "id": "calles",
+      "nombre": "Calles (vehículos/peatones)",
+      "script": "entrenar_calles.py",
+      "epocas": 500
+    }
+  ],
+  "pendientes": [],
+  "completados": [
+    "techo",
+    "fachada",
+    "ventanas",
+    "fachada_general",
+    "danos",
+    "senales",
+    "calles"
+  ],
+  "fallidos": [],
+  "log": [
+    "17:43:06 — arrancando desde 'ventanas', se saltan (ya completados): techo, fachada",
+    "17:43:06 — Esperando a que termine lo que ya está corriendo (entrenamiento_fachada.lock) antes de empezar...",
+    "16:32:09 — iniciando 'ventanas' (500 épocas)",
+    "03:54:35 — OK 'ventanas' completado (682.4 min)",
+    "03:54:35 — iniciando 'fachada_general' (500 épocas)",
+    "07:18:47 — OK 'fachada_general' completado (204.2 min)",
+    "07:18:47 — iniciando 'danos' (500 épocas)",
+    "10:03:51 — OK 'danos' completado (165.1 min)",
+    "10:03:51 — iniciando 'senales' (500 épocas)",
+    "16:17:57 — OK 'senales' completado (374.1 min)",
+    "16:17:57 — iniciando 'calles' (500 épocas)",
+    "07:07:32 — OK 'calles' completado (2329.6 min)",
+    "07:07:32 — Terminado. 7 OK, 0 fallidos."
+  ]
+}

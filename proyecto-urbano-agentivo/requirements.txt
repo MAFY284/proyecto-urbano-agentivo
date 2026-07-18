@@ -1,0 +1,45 @@
+# ══════════════════════════════════════════════════════════════════════
+# proyecto-urbano-agentivo — dependencias del entorno PRINCIPAL
+#
+# Consolidado desde los 4 repositorios insumo:
+#   - Analisis-Fachada-General-Techo-Yolo (Flask → tools/fachada, trafico, PDF)
+#   - App_Streamlit_Deteccion            (satélite YOLOv8-seg + Folium + fpdf)
+#   - deteccion-ventanas-streamlit       (comparador 5 modelos)
+#   - Proyecto-Delfin                    (pandas/geopandas, limpieza espacial)
+#
+# EXCLUIDOS deliberadamente de este archivo:
+#   - sam3 / torch 2.7  → viven en el venv aislado src/tools/env_sam3
+#     (incompatibles con el torch de Detectron2/YOLO). Ver install.sh.
+#   - detectron2        → no está en PyPI; instalación opcional:
+#     pip install 'git+https://github.com/facebookresearch/detectron2.git'
+# ══════════════════════════════════════════════════════════════════════
+
+# Visión por computadora
+ultralytics
+torch
+torchvision
+opencv-python-headless
+pillow
+numpy
+
+# Datos y geoespacial
+pandas
+openpyxl
+shapely
+geopandas
+
+# Telemetría de tráfico (funciones asíncronas)
+httpx
+requests
+
+# Dashboard unificado
+streamlit>=1.36        # requiere st.navigation
+streamlit-folium
+folium
+plotly
+
+# Reportes
+fpdf2
+
+# Configuración
+pyyaml

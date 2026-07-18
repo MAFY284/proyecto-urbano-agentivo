@@ -1,0 +1,18 @@
+# Dependencias del servidor Flask (servidor_deteccion.py) y scripts de entrenamiento.
+# Ver README.md → sección "Instalación" para más detalle (Git LFS, Detectron2 opcional).
+
+flask
+flask-cors
+ultralytics
+pillow
+opencv-python-headless
+numpy
+matplotlib
+shapely
+reportlab
+pandas
+openpyxl
+requests
+
+# Opcional — motor Detectron2 para la categoría Ventanas (no está en PyPI):
+#   pip install git+https://github.com/facebookresearch/detectron2.git

@@ -1,0 +1,14 @@
+# Entornos virtuales (recrear con install.sh)
+venv/
+src/tools/env_sam3/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Artefactos locales
+*.log
+nohup.out
+.DS_Store

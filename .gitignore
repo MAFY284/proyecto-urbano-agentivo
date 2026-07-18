@@ -1,0 +1,58 @@
+# =============================================================================
+# Entornos virtuales (se recrean con pip / install.sh, no se versionan)
+# =============================================================================
+venv/
+venv_sam3/
+env/
+ENV/
+.venv/
+proyecto-urbano-agentivo/venv/
+proyecto-urbano-agentivo/src/tools/env_sam3/
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# =============================================================================
+# Datasets crudos y procesados (decenas de GB, se distribuyen aparte)
+# =============================================================================
+analisis-fachada-techo-yolo/datasets_fuente/
+analisis-fachada-techo-yolo/datasets/
+analisis-fachada-techo-yolo/dataset_techo_yolo/
+analisis-fachada-techo-yolo/Fotos_Calle/
+analisis-fachada-techo-yolo/entrenamiento/.locks/
+analisis-fachada-techo-yolo/entrenamiento/*.txt
+analisis-fachada-techo-yolo/reporte_organizacion_datasets.json
+app-streamlit-deteccion/pages/models/
+
+# =============================================================================
+# Artefactos generados en tiempo de ejecución (reportes, logs, caches)
+# =============================================================================
+*.log
+nohup.out
+bitacora_proyecto.txt
+reporte_deteccion*.pdf
+Reporte_Inteligencia_Urbana_*.pdf
+reporte_*.pdf
+
+# =============================================================================
+# Configuración local y secretos — NUNCA subir claves de API
+# =============================================================================
+.env
+*.env
+.streamlit/secrets.toml
+.vscode/
+.claude/
+.idea/
+
+# =============================================================================
+# Sistema / varios
+# =============================================================================
+.DS_Store
+*.tar.gz
+*.zip

@@ -1,0 +1,18 @@
+# Dependencias de la app Streamlit "Analizador Urbano" (Inicio.py + pages/).
+# Ver README.md para el flujo de instalación completo.
+
+streamlit
+ultralytics
+torch
+torchvision
+opencv-python-headless
+pillow
+numpy
+pandas
+folium
+streamlit-folium
+plotly
+fpdf2
+
+# Requerido por la página de Ventanas (2_Ventanas_Edificios.py) — no está en PyPI:
+#   pip install git+https://github.com/facebookresearch/detectron2.git
