@@ -26,3 +26,20 @@ def ruta(relativa: str) -> Path:
     """Resuelve una ruta del settings.yaml contra la raíz del proyecto."""
     p = Path(relativa)
     return p if p.is_absolute() else RAIZ_PROYECTO / p
+
+
+def verificar_pesos(p: Path) -> Path:
+    """Valida un archivo de pesos antes de cargarlo, con errores accionables:
+    distingue entre "no existe" y "es un puntero de Git LFS sin descargar"
+    (clon hecho sin git-lfs instalado) — ambos se veían como un críptico
+    'not found' del framework al intentar cargar el modelo."""
+    if not p.exists():
+        raise FileNotFoundError(
+            f"No se encontró el archivo de pesos '{p.name}' en {p.parent}. "
+            "Verifica que clonaste el repositorio completo y corre `git lfs pull` "
+            "en la raíz para descargar los modelos.")
+    if p.stat().st_size < 2048:  # los .pt/.pth reales pesan MB; un puntero LFS ~130 bytes
+        raise FileNotFoundError(
+            f"'{p.name}' es un puntero de Git LFS, no el modelo real (el clon se hizo "
+            "sin git-lfs). Instala Git LFS y corre `git lfs pull` en la raíz del repositorio.")
+    return p

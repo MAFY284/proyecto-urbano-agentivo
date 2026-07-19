@@ -38,6 +38,31 @@ logging.basicConfig(level=logging.INFO, format="%(name)s: %(message)s")
 app = Flask(__name__)
 CORS(app)
 
+
+# ── Errores siempre como JSON accionable (el frontend muestra e.message) ──
+# Sin esto, un peso faltante o un OOM de GPU llegaban al usuario como un
+# críptico "NOT FOUND" / "INTERNAL SERVER ERROR" del navegador.
+
+@app.errorhandler(Exception)
+def _error_global(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return jsonify({"error": e.description or e.name}), e.code
+    app.logger.exception(e)
+    texto = str(e)
+    if isinstance(e, FileNotFoundError):
+        msg = texto  # verificar_pesos ya redacta el mensaje accionable
+    elif "out of memory" in texto.lower():
+        msg = ("Memoria de GPU insuficiente para este análisis en tu equipo. "
+               "El sistema reintenta automáticamente en CPU; si aun así falla, "
+               "reduce el tamaño de tile o usa una imagen más pequeña.")
+    elif isinstance(e, (ImportError, ModuleNotFoundError)):
+        msg = (f"Falta una dependencia de Python ({texto}). Activa el entorno "
+               "virtual y corre `bash install.sh` en la raíz del repositorio.")
+    else:
+        msg = f"Error interno: {texto}"
+    return jsonify({"error": msg}), 500
+
 # ── Agentes (una sola instancia por proceso) ──
 sig = AgenteSIG()
 vision = AgenteVision()
@@ -368,7 +393,29 @@ def api_pdf():
                      download_name=f"reporte_{cvegeo}.pdf")
 
 
+def _autoimportar_sam3():
+    """Puesta en marcha en un equipo nuevo: si la base de datos está vacía,
+    el mapa de riesgo se puebla solo desde el catálogo SAM3
+    (config/edificios_altura_estimadaSam3.csv) en segundo plano — mismo flujo
+    que el botón «Importar CSV SAM3», sin requerir acción del usuario."""
+    try:
+        if db.listar_riesgos():
+            return  # la BD ya trae evaluaciones — nada que hacer
+        from src.tools import gis_utils
+        ruta = RAIZ / "config" / "edificios_altura_estimadaSam3.csv"
+        if not ruta.exists():
+            return
+        log_manual("auto_import_sam3_inicio", archivo=ruta.name)
+        resumen = gis_utils.importar_csv_sam3(ruta, buscar_manzana=sig.localizar)
+        resultados = orq.analizar_todas_sync()
+        log_manual("auto_import_sam3_fin", **resumen,
+                   manzanas_reevaluadas=len(resultados))
+    except Exception as e:  # nunca tirar el servidor por la carga inicial
+        log_manual("auto_import_sam3_error", error=str(e))
+
+
 if __name__ == "__main__":
     puerto = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PUERTO", 3005))
+    threading.Thread(target=_autoimportar_sam3, daemon=True).start()
     print(f"🌐 http://127.0.0.1:{puerto}")
     app.run(host="127.0.0.1", port=puerto, debug=False, threaded=True)

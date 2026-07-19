@@ -102,7 +102,8 @@ def _ruta_pesos(motor: str) -> Path:
 def _cargar_yolo(ruta: Path):
     if ruta not in _yolo_cache:
         from ultralytics import YOLO
-        _yolo_cache[ruta] = YOLO(str(ruta))
+        # verificar_pesos da un error claro si el archivo es un puntero LFS
+        _yolo_cache[ruta] = YOLO(str(settings.verificar_pesos(ruta)))
     return _yolo_cache[ruta]
 
 

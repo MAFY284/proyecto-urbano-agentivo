@@ -22,7 +22,8 @@ document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
 
 /* ── utilidades ── */
 const nivel = s => s == null ? ['gris', 'Sin datos'] : s >= .5 ? ['alto', 'Alto'] : s >= .25 ? ['medio', 'Medio'] : ['bajo', 'Bajo'];
-const colorScore = s => s == null ? '#94a3b8' : s >= .5 ? '#b91c1c' : s >= .25 ? '#d97706' : '#15803d';
+// Semáforo del S_RU: verde / ámbar / rojo
+const colorScore = s => s == null ? '#9aa0a6' : s >= .5 ? '#d93025' : s >= .25 ? '#f9ab00' : '#188038';
 function dz(drop, input) {
   drop.onclick = () => input.click();
   drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
@@ -64,6 +65,7 @@ async function refrescarMando() {
   const gj = await (await fetch('/api/manzanas-geojson')).json();
   if (!MAPA) {
     MAPA = L.map('mapa').setView([19.410, -99.172], 15.4);
+    // Base clara y neutra: los polígonos del semáforo de riesgo resaltan solos
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
       { attribution: '© OpenStreetMap · CARTO', maxZoom: 19 }).addTo(MAPA);
   }
@@ -122,7 +124,7 @@ async function refrescarMando() {
       labels: Object.keys(niveles),
       datasets: [{
         data: Object.values(niveles),
-        backgroundColor: ['#15803d', '#d97706', '#b91c1c', '#cbd5e1'],
+        backgroundColor: ['#188038', '#f9ab00', '#d93025', '#dadce0'],
         borderColor: '#ffffff', borderWidth: 2
       }]
     },
@@ -130,7 +132,7 @@ async function refrescarMando() {
       cutout: '62%', plugins: {
         legend: {
           position: 'right',
-          labels: { color: '#1a2332', font: { family: 'Inter', size: 12 }, boxWidth: 14, usePointStyle: true }
+          labels: { color: '#202124', font: { family: 'Roboto', size: 12 }, boxWidth: 14, usePointStyle: true }
         }
       }
     }
@@ -280,9 +282,9 @@ $('#btnLab').onclick = () => accion($('#btnLab'), $('#spL'), async () => {
     </div>`).join('');
 });
 
-/* ── simulador (series: score azul sólido / congestión naranja punteada) ── */
-const gridCfg = { color: '#eef1f6' }, tickCfg = { color: '#5c6b7f', font: { family: 'Inter', size: 11 } };
-const legendCfg = { labels: { color: '#1a2332', font: { family: 'Inter', size: 12 }, boxWidth: 16, usePointStyle: true } };
+/* ── simulador (series: score azul sólido / congestión ámbar punteada) ── */
+const gridCfg = { color: '#e8eaed' }, tickCfg = { color: '#5f6368', font: { family: 'Roboto', size: 11 } };
+const legendCfg = { labels: { color: '#202124', font: { family: 'Roboto', size: 12 }, boxWidth: 16, usePointStyle: true } };
 async function simular() {
   const cv = $('#selSim').value; if (!cv) return;
   const q = new URLSearchParams({
@@ -300,11 +302,12 @@ async function simular() {
       type: 'line', data: {
         labels: horas, datasets: [
           {
-            label: 'Score de riesgo', data: r.curva_scores, borderColor: '#1d4ed8', borderWidth: 2,
-            pointRadius: 2, pointHoverRadius: 5, tension: .35, fill: false
+            label: 'Score de riesgo', data: r.curva_scores, borderColor: '#1a73e8', borderWidth: 2,
+            pointRadius: 2, pointHoverRadius: 5, tension: .35, fill: false,
+            pointBackgroundColor: '#1a73e8'
           },
           {
-            label: 'Congestión (perfil histórico)', data: r.curva_congestion, borderColor: '#c2410c', borderWidth: 2,
+            label: 'Congestión (perfil histórico)', data: r.curva_congestion, borderColor: '#e37400', borderWidth: 2,
             borderDash: [6, 4], pointRadius: 0, pointHoverRadius: 5, tension: .35, fill: false
           }]
       },
@@ -319,8 +322,8 @@ async function simular() {
     chComp = new Chart($('#chComp'), {
       type: 'bar', data: {
         labels: top.map(x => x.cvegeo.slice(-5)), datasets: [
-          { label: 'Score simulado', data: top.map(x => x.simulado), backgroundColor: '#1d4ed8', borderRadius: 3, maxBarThickness: 18 },
-          { label: 'Score actual', data: top.map(x => x.actual), backgroundColor: '#94a3b8', borderRadius: 3, maxBarThickness: 18 }]
+          { label: 'Score simulado', data: top.map(x => x.simulado), backgroundColor: '#d93025', borderRadius: 3, maxBarThickness: 18 },
+          { label: 'Score actual', data: top.map(x => x.actual), backgroundColor: '#9aa0a6', borderRadius: 3, maxBarThickness: 18 }]
       },
       options: {
         responsive: true,

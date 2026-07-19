@@ -39,7 +39,19 @@ def _cfg() -> dict:
 
 def api_key() -> str | None:
     """La key SIEMPRE se lee de la variable de entorno (TOMTOM_API_KEY);
-    nunca debe escribirse en un archivo del repositorio."""
+    nunca debe escribirse en un archivo del repositorio.
+
+    ── Configurar la key (gratis en https://developer.tomtom.com/) ──
+      bash/zsh:  export TOMTOM_API_KEY="tu_key"      # agrégalo a ~/.bashrc para que persista
+      fish:      set -Ux TOMTOM_API_KEY "tu_key"     # variable universal, persiste sola
+
+    ── Recolección automática cada 30 minutos ──
+      python main.py trafico --loop                  # intervalo por defecto: 1800 s (30 min)
+      python main.py trafico --loop --intervalo 900  # u otro intervalo en segundos
+    O programado con cron (sin dejar el proceso abierto):
+      */30 * * * * cd /ruta/al/repo && venv/bin/python main.py trafico
+    Sin key configurada el sistema no falla: usa el perfil histórico 7×24.
+    """
     return os.environ.get(_cfg()["api_key_env"])
 
 

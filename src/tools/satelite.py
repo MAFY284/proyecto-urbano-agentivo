@@ -59,7 +59,10 @@ def cargar_modelo():
     global _modelo_cache
     if _modelo_cache is None:
         from ultralytics import YOLO
-        ruta = settings.ruta(settings.cargar()["satelite"]["pesos"])
+        # verificar_pesos da un error claro si faltan o son punteros LFS,
+        # en vez del críptico 'not found' del framework
+        ruta = settings.verificar_pesos(
+            settings.ruta(settings.cargar()["satelite"]["pesos"]))
         _modelo_cache = YOLO(str(ruta), task='segment')
     return _modelo_cache
 
@@ -123,11 +126,25 @@ def segmentar_imagen(imagen, esquinas: Esquinas | None = None,
     area_total_m2 = 0.0
     contador = 0
 
+    device_efectivo = device or ("0" if torch.cuda.is_available() else "cpu")
+
     for i, (x0, y0, x1, y1) in enumerate(tiles):
         tile_img = imagen.crop((x0, y0, x1, y1))
-        results = modelo.predict(tile_img, conf=conf, imgsz=tile_size, half=half,
-                                 device=device or ("0" if torch.cuda.is_available() else "cpu"),
-                                 retina_masks=False, verbose=False)
+        try:
+            results = modelo.predict(tile_img, conf=conf, imgsz=tile_size, half=half,
+                                     device=device_efectivo,
+                                     retina_masks=False, verbose=False)
+        except RuntimeError as e:
+            from src.tools.fachada import es_error_de_memoria
+            if device_efectivo == "cpu" or not es_error_de_memoria(e):
+                raise
+            # GPU sin memoria para este tamaño de tile: seguir todo el lote en
+            # CPU — más lento, pero el análisis termina en cualquier equipo
+            torch.cuda.empty_cache()
+            device_efectivo = "cpu"
+            results = modelo.predict(tile_img, conf=conf, imgsz=tile_size, half=half,
+                                     device=device_efectivo,
+                                     retina_masks=False, verbose=False)
 
         if results[0].masks is not None:
             poligonos_px = results[0].masks.xy

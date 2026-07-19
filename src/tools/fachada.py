@@ -64,9 +64,33 @@ def cargar_modelo(tipo: str):
     from ultralytics import YOLO
     cfg = settings.cargar()["modelos_fachada"][tipo]
     ruta = settings.ruta(cfg["pesos"])
-    modelo = YOLO(str(ruta)) if ruta.exists() else YOLO(cfg["fallback"])
+    if ruta.exists():
+        modelo = YOLO(str(settings.verificar_pesos(ruta)))  # detecta punteros LFS
+    else:
+        modelo = YOLO(cfg["fallback"])
     _modelos_cache[tipo] = modelo
     return modelo
+
+
+def es_error_de_memoria(e: BaseException) -> bool:
+    """CUDA OOM llega como torch.cuda.OutOfMemoryError o como RuntimeError
+    con 'out of memory' en el mensaje, según la versión de torch."""
+    return "out of memory" in str(e).lower()
+
+
+def predict_con_fallback_cpu(modelo, device: str, **kwargs):
+    """Ejecuta model.predict(); si la GPU se queda sin memoria (equipos
+    modestos), libera VRAM y reintenta automáticamente en CPU — más lento,
+    pero el análisis funciona en cualquier PC."""
+    import torch
+    try:
+        return modelo.predict(device=device, **kwargs)
+    except RuntimeError as e:
+        if device == "cpu" or not es_error_de_memoria(e):
+            raise
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        return modelo.predict(device="cpu", **kwargs)
 
 
 def parsear_conf(valor, por_defecto: float | None = None) -> float:
@@ -149,8 +173,8 @@ def detectar(imagen, tipo: str = 'fachada', conf: float | None = None,
 
     conf = parsear_conf(conf)
     modelo = cargar_modelo(tipo)
-    results = modelo.predict(source=imagen, conf=conf, imgsz=640,
-                             device=device or dispositivo_inferencia(), verbose=False)
+    results = predict_con_fallback_cpu(modelo, device or dispositivo_inferencia(),
+                                       source=imagen, conf=conf, imgsz=640, verbose=False)
     r = results[0]
 
     imagen_anotada = None
