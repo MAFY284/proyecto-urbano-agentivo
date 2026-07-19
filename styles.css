@@ -5,7 +5,7 @@
    ══════════════════════════════════════════════════════════════════════ */
 
 :root{
-  --bg:#f8f9fa;            /* fondo de página */
+  --bg:#dcdcdc;            /* fondo de página */
   --surf:#ffffff;          /* paneles y superficies */
   --surf2:#f8f9fa;         /* cabeceras de tabla / zonas hundidas */
   --line:#dadce0;          /* bordes */

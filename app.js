@@ -10,7 +10,7 @@ const api = async (u, opt) => {
   if (!r.ok) throw new Error(j.error || r.statusText);
   return j;
 };
-let ESTADO = null, MAPA = null, CAPA = null, chCurva = null, chComp = null, GEO_SAT = null;
+let ESTADO = null, MAPA = null, CAPA = null, chCurva = null, chComp = null, chDona = null, GEO_SAT = null;
 
 /* ── navegación ── */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
@@ -118,8 +118,8 @@ async function refrescarMando() {
   $('#hScore').textContent = rk.length ? Math.max(...rk.map(r => r.score_riesgo)).toFixed(3) : '—';
   const niveles = { Bajo: 0, Medio: 0, Alto: 0, ['Sin datos']: gj.features.length - rk.length };
   rk.forEach(r => { niveles[nivel(r.score_riesgo)[1]]++; });
-  if (window.chDona) window.chDona.destroy();
-  window.chDona = new Chart($('#chDona'), {
+  if (chDona) chDona.destroy();
+  chDona = new Chart($('#chDona'), {
     type: 'doughnut', data: {
       labels: Object.keys(niveles),
       datasets: [{
